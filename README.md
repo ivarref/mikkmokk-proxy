@@ -9,7 +9,7 @@ You can use it to test how well your services handles
 
 ## Usage
 
-#### Start the reverse proxy:
+#### Start the reverse proxy
 
 The following setup proxies to `http://example.com`:
 ```bash
@@ -135,7 +135,8 @@ been accessed using `x-mikkmokk-delay-after-percentage` and
 $ curl -XPOST -H 'x-mikkmokk-fail-before-percentage: 20' http://localhost:7070/api/v1/update
 {"fail-before-percentage":20}
 
-# Using the hey load generator (https://github.com/rakyll/hey), we can test if 20% of requests fail:
+# Using the hey load generator https://github.com/rakyll/hey, 
+# we can test if 20% of requests fail:
 $ hey -n 100 http://localhost:8080
 ...
 Status code distribution:
