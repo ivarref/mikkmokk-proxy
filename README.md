@@ -129,11 +129,24 @@ It's also possible to inject delays after the destination service has
 been accessed using `x-mikkmokk-delay-after-percentage` and
 `x-mikkmokk-delay-after-ms`.
 
-### Use the admin API to set new defaults
+### Use the admin API to change the defaults at runtime
+
+The admin API, running on port 7070 in this example, can be
+used to change the defaults headers for the runtime of the proxy.
 
 ```
 $ curl -XPOST -H 'x-mikkmokk-fail-before-percentage: 20' http://localhost:7070/api/v1/update
-{"fail-before-percentage":20}
+{"delay-after-ms":0,
+ "delay-after-percentage":0,
+ "delay-before-ms":0,
+ "delay-before-percentage":0,
+ "duplicate-percentage":0,
+ "fail-after-code":502,
+ "fail-after-percentage":0,
+ "fail-before-code":503,
+ "fail-before-percentage":20,    # <-- new default
+ "match-method":"*",
+ "match-uri":"*"}
 
 # Using the hey load generator https://github.com/rakyll/hey, 
 # we can test if 20% of requests fail:
@@ -145,11 +158,33 @@ Status code distribution:
 
 # List current settings
 $ curl http://localhost:7070/api/v1/list
-{"fail-before-percentage":20}
-
-# Reset the admin API settings
+{"delay-after-ms":0,
+ "delay-after-percentage":0,
+ "delay-before-ms":0,
+ "delay-before-percentage":0,
+ "destination-url":"",
+ "duplicate-percentage":0,
+ "fail-after-code":502,
+ "fail-after-percentage":0,
+ "fail-before-code":503,
+ "fail-before-percentage":20,
+ "match-method":"*",
+ "match-uri":"*"}
+ 
+# Reset the admin settings
 $ curl -XPOST http://localhost:7070/api/v1/reset
-{}
+{"delay-after-ms":0,
+ "delay-after-percentage":0,
+ "delay-before-ms":0,
+ "delay-before-percentage":0,
+ "destination-url":"",
+ "duplicate-percentage":0,
+ "fail-after-code":502,
+ "fail-after-percentage":0,
+ "fail-before-code":503,
+ "fail-before-percentage":0,    # <-- fail-before-percentage now has the environment default
+ "match-method":"*",
+ "match-uri":"*"}
 
 $ hey -n 100 http://localhost:8080
 ...
@@ -168,7 +203,6 @@ to `x-mikkmokk-fail-before-` headers.
 
 [toxiproxy](https://github.com/Shopify/toxiproxy): A chaotic TCP proxy.
 
-[testcontainers-java](https://github.com/testcontainers/testcontainers-java): Has a separate module for toxiproxy.
 
 ## License
 

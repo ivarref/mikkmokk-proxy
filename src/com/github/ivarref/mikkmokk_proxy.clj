@@ -31,7 +31,9 @@
    :delay-after-ms          0
 
    :match-uri               "*"
-   :match-method            "*"})
+   :match-method            "*"
+
+   :destination-url         nil})
 
 
 (defn parse-long-maybe [m k]
@@ -81,12 +83,14 @@
     (parse-long-maybe :delay-after-percentage)
     (parse-long-maybe :delay-after-ms)
     (parse-long-maybe :duplicate-percentage)
+    (set-string-maybe :destination-url)
     (set-string-maybe :match-uri)
     (set-string-maybe :match-method)
     (select-keys (keys (default-headers)))))
 
 (defn parse-headers [headers]
-  (merge
+  (merge-with (fn [a b] (or b a))
+    (env-settings)
     (default-headers)
     @admin-settings
     (parse-headers-str-map headers)))
@@ -96,9 +100,12 @@
   (str "\""
        (if (keyword? k) (name k) k)
        "\":"
-       (if (int? v)
-         v
-         (str "\"" v "\""))))
+       (cond (int? v)
+             v
+             (nil? v)
+             "null"
+             :else
+             (str "\"" v "\""))))
 
 (defn matches-uri? [string-pat uri]
   (cond
@@ -155,12 +162,8 @@
     (rand-nth (filterv some? [resp1 resp2]))))
 
 
-(defn handler [{:keys [destination-url request-method uri headers body]}]
-  (let [host (second (str/split destination-url (re-pattern (Pattern/quote "://"))))
-        method-uri (str (str/upper-case (name request-method)) " " uri)
-        dest-headers (assoc headers "host" host)
-        url (str destination-url uri)
-        {:keys [fail-before-percentage
+(defn handler [{:keys [request-method uri headers body]}]
+  (let [{:keys [fail-before-percentage
                 fail-before-code
                 fail-after-percentage
                 fail-after-code
@@ -170,7 +173,12 @@
                 delay-after-ms
                 duplicate-percentage
                 match-uri
-                match-method]} (parse-headers headers)
+                match-method
+                destination-url]} (parse-headers headers)
+        host (second (str/split destination-url (re-pattern (Pattern/quote "://"))))
+        method-uri (str (str/upper-case (name request-method)) " " uri)
+        dest-headers (assoc headers "host" host)
+        url (str destination-url uri)
         match? (and (matches-uri? match-uri uri)
                     (matches-method? match-method request-method))
         delay-before-ms (if (and (> delay-before-percentage (rand-int 100)) match?)
@@ -210,11 +218,15 @@
              :body    body}))))))
 
 (defn admin-map->response [adm]
-  {:status  200
-   :headers {"content-type" "application/json"}
-   :body    (str "{"
-                 (str/join "," (mapv (fn [[k v]] (json-kv k v)) (into (sorted-map) adm)))
-                 "}" body-trailer)})
+  (let [adm (into (sorted-map) (merge-with (fn [a b] (or b a))
+                                           (env-settings)
+                                           (default-headers)
+                                           adm))]
+    {:status  200
+     :headers {"content-type" "application/json"}
+     :body    (str "{"
+                   (str/join ",\n " (mapv (fn [[k v]] (json-kv k v)) adm))
+                   "}" body-trailer)}))
 
 (defn admin-handler [{:keys [headers uri request-method]}]
   (cond
@@ -229,9 +241,17 @@
 
     (and (= request-method :get) (= uri "/"))
     {:status  200
-     :headers {"content-type" "text/plain"}
+     :headers {"content-type" "application/json"}
      :body    (str "{"
                    (json-kv "service" "mikkmokk")
+                   "}" body-trailer)}
+
+    (and (= request-method :get) (contains? #{"/health" "/healthcheck"} uri))
+    {:status  200
+     :headers {"content-type" "application/json"}
+     :body    (str "{"
+                   (json-kv "service" "mikkmokk") ","
+                   (json-kv "status" "healthy")
                    "}" body-trailer)}
 
     :else {:status  404
@@ -243,4 +263,4 @@
   (http/start-server (fn [req] (admin-handler req)) {:port 7070}))
 
 (comment
-  (http/start-server (fn [req] (handler (merge {:destination-url "http://example.com"} req))) {:port 8080}))
+  (http/start-server (fn [req] (handler (merge nil #_{:destination-url "http://example.com"} req))) {:port 8080}))
