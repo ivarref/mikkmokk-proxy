@@ -1,0 +1,3 @@
+{:lib     com.github.ivarref/mikkmokk-proxy
+ :version "0.1.{{git/commit-count}}"
+ :main    com.github.ivarref.mikkmokk-proxy}

@@ -3,7 +3,8 @@
             [manifold.deferred :as d]
             [clojure.string :as str]
             [clojure.tools.logging :as log])
-  (:import (java.util.regex Pattern)))
+  (:import (java.util.regex Pattern))
+  (:gen-class))
 
 
 (defn get-env [k v]
@@ -258,6 +259,10 @@
            :headers {"content-type" "application/json"}
            :body    (str "{" (json-kv "message" "not-found") "}" body-trailer)}))
 
+(defn -main
+  "Main method used to start the system from a JAR file."
+  [& _args]
+  (println "hello world"))
 
 (comment
   (http/start-server (fn [req] (admin-handler req)) {:port 7070}))

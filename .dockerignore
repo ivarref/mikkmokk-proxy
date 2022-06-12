@@ -1,0 +1,5 @@
+*
+!src/
+!resources/
+!deps.edn
+!build.edn

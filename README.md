@@ -2,7 +2,7 @@
 
 mikkmokk-proxy is a reverse proxy server that injects faults on the HTTP layer.
 
-You can use it to test how well your services handles
+Test how well your services handles
 * failed requests
 * duplicate requests
 * delayed requests
@@ -129,7 +129,7 @@ It's also possible to inject delays after the destination service has
 been accessed using `x-mikkmokk-delay-after-percentage` and
 `x-mikkmokk-delay-after-ms`.
 
-### Use the admin API to change the defaults at runtime
+### Use the admin API to change defaults at runtime
 
 The admin API, running on port 7070 in this example, can be
 used to change the defaults headers for the runtime of the proxy.
@@ -140,11 +140,12 @@ $ curl -XPOST -H 'x-mikkmokk-fail-before-percentage: 20' http://localhost:7070/a
  "delay-after-percentage":0,
  "delay-before-ms":0,
  "delay-before-percentage":0,
+ "destination-url":"http://example.com",
  "duplicate-percentage":0,
  "fail-after-code":502,
  "fail-after-percentage":0,
  "fail-before-code":503,
- "fail-before-percentage":20,    # <-- new default
+ "fail-before-percentage":20,
  "match-method":"*",
  "match-uri":"*"}
 
@@ -162,7 +163,7 @@ $ curl http://localhost:7070/api/v1/list
  "delay-after-percentage":0,
  "delay-before-ms":0,
  "delay-before-percentage":0,
- "destination-url":"",
+ "destination-url":"http://example.com",
  "duplicate-percentage":0,
  "fail-after-code":502,
  "fail-after-percentage":0,
@@ -177,7 +178,7 @@ $ curl -XPOST http://localhost:7070/api/v1/reset
  "delay-after-percentage":0,
  "delay-before-ms":0,
  "delay-before-percentage":0,
- "destination-url":"",
+ "destination-url":"http://example.com",
  "duplicate-percentage":0,
  "fail-after-code":502,
  "fail-after-percentage":0,
