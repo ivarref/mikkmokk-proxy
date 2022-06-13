@@ -1,12 +1,12 @@
 (ns com.github.ivarref.mikkmokk-proxy
   (:require [aleph.http :as http]
             [clojure.string :as str]
-            [clojure.tools.logging :as log]
-            [manifold.deferred :as d])
+            [clojure.tools.logging :as log])
   (:import (java.io Closeable)
            (java.net InetSocketAddress)
            (java.util.concurrent Executors)
-           (java.util.regex Pattern))
+           (java.util.regex Pattern)
+           (sun.misc Signal SignalHandler))
   (:gen-class))
 
 
@@ -205,7 +205,7 @@
                              0)]
         (when (pos-int? delay-before-ms)
           (log/info "before-delay" delay-before-ms "ms")
-          @(d/timeout! (d/deferred) delay-before-ms nil))
+          (Thread/sleep delay-before-ms))
         (if (and (> fail-before-percentage (rand-int 100)) match?)
           (do
             (log/info "HTTP" fail-before-code method-uri "fail-before")
@@ -215,7 +215,7 @@
           (let [{:keys [headers status body]} (make-request match? duplicate-percentage request-method uri url dest-headers body)]
             (when (pos-int? delay-after-ms)
               (log/info "delay-after" delay-after-ms "ms")
-              (d/timeout! (d/deferred) delay-after-ms))
+              (Thread/sleep delay-after-ms))
             (if (and (> fail-after-percentage (rand-int 100)) match?)
               (do
                 (log/info "HTTP" fail-after-code method-uri "fail-after. Destination response code:" status)
@@ -276,6 +276,16 @@
 
 (defonce servers (atom {}))
 
+(defn stop! [curr]
+  (doseq [[nam inst] curr]
+    (when (and inst (instance? Closeable inst))
+      (try
+        (.close ^Closeable inst)
+        (catch Throwable t
+          (log/warn "Could not shutdown" (name nam) ":" (ex-message t))))
+      (log/info "Stopped" (name nam) "server")))
+  nil)
+
 (defn run-main [_]
   (let [proxy-bind (get-env "PROXY_BIND" "127.0.0.1")
         proxy-port (get-env "PROXY_PORT" "8080")
@@ -283,10 +293,7 @@
         admin-port (get-env "ADMIN_PORT" "7070")]
     (swap! servers
            (fn [curr]
-             (doseq [[nam inst] curr]
-               (when (and inst (instance? Closeable inst))
-                 (log/info "Stopping" (name nam) "server")
-                 (.close ^Closeable inst)))
+             (stop! curr)
              {:admin (http/start-server (fn [req] (admin-handler req))
                                         {:executor       (Executors/newFixedThreadPool 8)
                                          :socket-address (InetSocketAddress. ^String admin-bind (parse-long admin-port))})
@@ -301,16 +308,22 @@
 (defn -main
   "Main method used to start the system from a JAR file."
   [& _args]
-  (.addShutdownHook (Runtime/getRuntime)
-                    (Thread.
-                      ^Runnable
-                      (fn []
-                        (doseq [[nam inst] @servers]
-                          (when (and inst (instance? Closeable inst))
-                            (log/info "Stopping" (name nam) "server")
-                            (.close ^Closeable inst))))))
-  (run-main nil)
-  @(promise))
+  (let [p (promise)]
+    (Signal/handle
+      (Signal. "INT")
+      (proxy [SignalHandler] []
+        (handle [_]
+          (log/info "Received SIGINT")
+          (swap! servers stop!)
+          (log/info "Shutting down agents ...")
+          (log/info "Shutting down agents ... OK")
+          (deliver p nil)
+          (log/info "Delivered promise"))))
+    (run-main nil)
+    @p
+    (log/info "about to exit!")
+    (Thread/sleep 3000)
+    (log/info "about to exit2!")))
 
 (comment
   (run-main {}))

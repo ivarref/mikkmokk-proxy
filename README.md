@@ -13,7 +13,7 @@ Test how well your services handles
 
 The following setup proxies to `http://example.com`:
 ```bash
-docker run ... \
+docker run --init --rm --name mikkmokk-proxy docker.io/ivarref/mikkmokk-proxy:v0.1.18 \
   -e DESTINATION_URL=http://example.com \
   -e PROXY_BIND=0.0.0.0 \
   -e PROXY_PORT=8080 \
