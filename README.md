@@ -30,7 +30,7 @@ There are two ports being exposed:
 
 There are three ways mikkmokk can be instructed to inject faults:
 * Dynamically per request using HTTP headers when accessing the reverse proxy.
-* Set new defaults during runtime using the admin server.
+* Setting new defaults at runtime using the admin server.
 * Using environment variables when starting the proxy.
 
 #### Issue a regular request
