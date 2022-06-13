@@ -168,7 +168,7 @@
         resp2 @req2]
     (if duplicate?
       (if (not= (:status resp1) (:status resp2))
-        (log/warn "Duplicate request returned different HTTP status codes" (:status resp1) "vs" (:status resp2) "for" (str/upper-case (name request-method)) uri)
+        (log/info "Duplicate request returned different HTTP status codes" (:status resp1) "vs" (:status resp2) "for" (str/upper-case (name request-method)) uri)
         (log/info "Duplicate request returned identical HTTP status code" (:status resp1) "for" (str/upper-case (name request-method)) uri))
       (log/debug "No duplicate request"))
     (rand-nth (filterv some? [resp1 resp2]))))
@@ -186,48 +186,52 @@
                 duplicate-percentage
                 match-uri
                 match-method
-                destination-url]} (parse-headers headers)
-        host (second (str/split destination-url (re-pattern (Pattern/quote "://"))))
-        method-uri (str (str/upper-case (name request-method)) " " uri)
-        dest-headers (assoc headers "host" host)
-        url (str destination-url uri)
-        match? (and (matches-uri? match-uri uri)
-                    (matches-method? match-method request-method))
-        delay-before-ms (if (and (> delay-before-percentage (rand-int 100)) match?)
-                          delay-before-ms
-                          0)
-        delay-after-ms (if (and (> delay-after-percentage (rand-int 100)) match?)
-                         delay-after-ms
-                         0)]
-    (when (pos-int? delay-before-ms)
-      (log/info "before-delay" delay-before-ms "ms")
-      @(d/timeout! (d/deferred) delay-before-ms nil))
-    (if (and (> fail-before-percentage (rand-int 100)) match?)
-      (do
-        (log/info "HTTP" fail-before-code method-uri "fail-before")
-        {:status  fail-before-code
-         :headers {"content-type" "application/json"}
-         :body    (str "{" (json-kv "error" "fail-before") "}" body-trailer)})
-      (let [{:keys [headers status body]} (make-request match? duplicate-percentage request-method uri url dest-headers body)]
-        (when (pos-int? delay-after-ms)
-          (log/info "delay-after" delay-after-ms "ms")
-          (d/timeout! (d/deferred) delay-after-ms))
-        (if (and (> fail-after-percentage (rand-int 100)) match?)
+                destination-url]} (parse-headers headers)]
+    (if (empty? destination-url)
+      {:status  500
+       :headers {"content-type" "application/json"}
+       :body    (str "{" (json-kv "error" "missing-destination-url") "}" body-trailer)}
+      (let [host (second (str/split destination-url (re-pattern (Pattern/quote "://"))))
+            method-uri (str (str/upper-case (name request-method)) " " uri)
+            dest-headers (assoc headers "host" host)
+            url (str destination-url uri)
+            match? (and (matches-uri? match-uri uri)
+                        (matches-method? match-method request-method))
+            delay-before-ms (if (and (> delay-before-percentage (rand-int 100)) match?)
+                              delay-before-ms
+                              0)
+            delay-after-ms (if (and (> delay-after-percentage (rand-int 100)) match?)
+                             delay-after-ms
+                             0)]
+        (when (pos-int? delay-before-ms)
+          (log/info "before-delay" delay-before-ms "ms")
+          @(d/timeout! (d/deferred) delay-before-ms nil))
+        (if (and (> fail-before-percentage (rand-int 100)) match?)
           (do
-            (log/info "HTTP" fail-after-code method-uri "fail-after. Destination response code:" status)
-            {:status  fail-after-code
+            (log/info "HTTP" fail-before-code method-uri "fail-before")
+            {:status  fail-before-code
              :headers {"content-type" "application/json"}
-             :body    (str "{"
-                           (json-kv "error" "fail-after")
-                           ","
-                           (json-kv "destination-response-code" status)
-                           "}"
-                           body-trailer)})
-          (do
-            (log/info "HTTP" status method-uri "from destination")
-            {:status  status
-             :headers headers
-             :body    body}))))))
+             :body    (str "{" (json-kv "error" "fail-before") "}" body-trailer)})
+          (let [{:keys [headers status body]} (make-request match? duplicate-percentage request-method uri url dest-headers body)]
+            (when (pos-int? delay-after-ms)
+              (log/info "delay-after" delay-after-ms "ms")
+              (d/timeout! (d/deferred) delay-after-ms))
+            (if (and (> fail-after-percentage (rand-int 100)) match?)
+              (do
+                (log/info "HTTP" fail-after-code method-uri "fail-after. Destination response code:" status)
+                {:status  fail-after-code
+                 :headers {"content-type" "application/json"}
+                 :body    (str "{"
+                               (json-kv "error" "fail-after")
+                               ","
+                               (json-kv "destination-response-code" status)
+                               "}"
+                               body-trailer)})
+              (do
+                (log/info "HTTP" status method-uri "from destination")
+                {:status  status
+                 :headers headers
+                 :body    body}))))))))
 
 (defn admin-map->response [adm]
   (let [adm (into (sorted-map) (merge-with (fn [a b] (or b a))
