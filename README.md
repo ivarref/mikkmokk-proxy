@@ -208,7 +208,7 @@ Status code distribution:
 | fail-before-code        | The HTTP status code to reply with if a request was deliberately aborted before accessing the destination | 503           |
 | fail-before-percentage  | Percentage chance of aborting the request before accessing the destination                                | 0             |
 | match-method            | Only apply failures and/or delays to this HTTP method (GET, POST, HEAD, etc.)                             | *             |
-| match-uri               | Only apply failures and/or delays to this HTTP uri                                                        | *             |
+| match-uri               | Only apply failures and/or delays to this HTTP uri (e.g. `/my-api/my-endpoint`)                           | *             |
 
 ## Limitations
 No TLS/SSL support for the proxy server.
