@@ -3,16 +3,15 @@
             [manifold.deferred :as d]
             [clojure.string :as str]
             [clojure.tools.logging :as log])
-  (:import (java.util.regex Pattern))
+  (:import (java.util.regex Pattern)
+           (java.net InetSocketAddress)
+           (java.io Closeable))
   (:gen-class))
 
 
 (defn get-env [k v]
   (or (System/getenv k)
       (System/getProperty k v)))
-
-(defn env-settings []
-  {:destination-url (get-env "DESTINATION_URL" nil)})
 
 (defonce admin-settings (atom {}))
 
@@ -36,6 +35,17 @@
 
    :destination-url         nil})
 
+(defn env-settings []
+  (->> (default-headers)
+       (mapcat (fn [[k v]]
+                 (let [env-k (-> (name k)
+                                 (str/upper-case)
+                                 (str/replace "-" "_"))]
+                   (when-let [env-v (get-env env-k nil)]
+                     [[k (if (or (nil? v) (string? v))
+                           env-v
+                           (parse-long env-v))]]))))
+       (into (sorted-map))))
 
 (defn parse-long-maybe [m k]
   (if-let [v (get m k)]
@@ -91,10 +101,10 @@
 
 (defn parse-headers [headers]
   (merge-with (fn [a b] (or b a))
-    (env-settings)
-    (default-headers)
-    @admin-settings
-    (parse-headers-str-map headers)))
+              (default-headers)
+              (env-settings)
+              @admin-settings
+              (parse-headers-str-map headers)))
 
 
 (defn json-kv [k v]
@@ -220,8 +230,8 @@
 
 (defn admin-map->response [adm]
   (let [adm (into (sorted-map) (merge-with (fn [a b] (or b a))
-                                           (env-settings)
                                            (default-headers)
+                                           (env-settings)
                                            adm))]
     {:status  200
      :headers {"content-type" "application/json"}
@@ -259,10 +269,38 @@
            :headers {"content-type" "application/json"}
            :body    (str "{" (json-kv "message" "not-found") "}" body-trailer)}))
 
+(defonce servers (atom {}))
+
+(defn run-main [{:keys [block?]}]
+  (let [proxy-bind (get-env "PROXY_BIND" "127.0.0.1")
+        proxy-port (get-env "PROXY_PORT" "8080")
+        admin-bind (get-env "ADMIN_BIND" "127.0.0.1")
+        admin-port (get-env "ADMIN_PORT" "7070")]
+    (swap! servers
+           (fn [curr]
+             (doseq [[nam inst] curr]
+               (when (and inst (instance? Closeable inst))
+                 (log/info "Stopping" (name nam) "server")
+                 (.close ^Closeable inst)))
+             {:admin (http/start-server (fn [req] (admin-handler req))
+                                        {:socket-address (InetSocketAddress. ^String admin-bind (parse-long admin-port))})
+              :proxy (http/start-server (fn [req] (handler req))
+                                        {:socket-address (InetSocketAddress. ^String proxy-bind (parse-long proxy-port))})}))
+    (log/info "Started admin server at" (str admin-bind ":" admin-port))
+    (log/info "Started proxy server at" (str proxy-bind ":" proxy-port))
+    (doseq [[k v] (into (sorted-map) (env-settings))]
+      (log/info "env setting" k v))
+    (when block?
+      (log/info "Blocking ...")
+      @(promise))))
+
 (defn -main
   "Main method used to start the system from a JAR file."
   [& _args]
-  (println "hello world"))
+  (run-main {:block? true}))
+
+(comment
+  (run-main {}))
 
 (comment
   (http/start-server (fn [req] (admin-handler req)) {:port 7070}))

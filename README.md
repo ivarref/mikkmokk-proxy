@@ -199,8 +199,13 @@ No WebSocket support.
 
 ## Alternatives and related software
 
-[envoyproxy](https://www.envoyproxy.io/) has a [fault injection filter](https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/fault_filter#config-http-filters-fault-injection). That seems equivalent
-to `x-mikkmokk-fail-before-` headers.
+[envoyproxy](https://www.envoyproxy.io/) has a [fault injection filter](https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/fault_filter#config-http-filters-fault-injection) that seems equivalent to `x-mikkmokk-fail-before-` headers.
+
+[mefellows/muxy](https://github.com/mefellows/muxy): Chaos engineering tool for simulating real-world distributed system failures.
+
+[bouncestorage/chaos-http-proxy](https://github.com/bouncestorage/chaos-http-proxy):  Introduce failures into HTTP requests via a proxy server.
+
+[clusterfk/chaos-proxy](https://github.com/clusterfk/chaos-proxy): ClusterFk Chaos Proxy is an unreliable HTTP proxy you can rely on.
 
 [toxiproxy](https://github.com/Shopify/toxiproxy): A chaotic TCP proxy.
 
