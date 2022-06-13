@@ -146,7 +146,7 @@ $ curl -XPOST -H 'x-mikkmokk-fail-before-percentage: 20' http://localhost:7070/a
  "fail-after-code":502,
  "fail-after-percentage":0,
  "fail-before-code":503,
- "fail-before-percentage":20,
+ "fail-before-percentage":20,    # <-- fail-before-percentage now has a new default value
  "match-method":"*",
  "match-uri":"*"}
 
