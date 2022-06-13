@@ -70,7 +70,7 @@ using the header `x-mikkmokk-fail-before-code`.
 #### Insert a failure after a request has been processed by the destination
 
 The header `x-mikkmokk-fail-after-percentage` can be used to simulate that the 
-destination received and processed the request, but
+destination has received and processed the request, but
 that the network between the proxy and the destination failed before
 the proxy received the response. Thus, the client will receive an incorrect response.
 If the client retries, will the backend handle a duplicate request?
@@ -133,7 +133,7 @@ been accessed using `x-mikkmokk-delay-after-percentage` and
 ### Use the admin API to change defaults at runtime
 
 The admin API, running on port 7070 in this example, can be
-used to change the defaults headers for the runtime of the proxy.
+used to change the default headers for the runtime of the proxy.
 
 ```
 $ curl -XPOST -H 'x-mikkmokk-fail-before-percentage: 20' http://localhost:7070/api/v1/update
