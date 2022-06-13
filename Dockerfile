@@ -1,4 +1,4 @@
-FROM clojure:openjdk-17-tools-deps-1.11.1.1105-buster as builder
+FROM clojure:temurin-17-tools-deps-1.11.1.1113-focal as builder
 WORKDIR /src
 COPY deps.edn .
 COPY build.edn .

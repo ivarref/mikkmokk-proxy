@@ -277,7 +277,7 @@
 (defonce servers (atom {}))
 
 (defn stop! [curr]
-  (doseq [[nam inst] curr]
+  (doseq [[nam inst] (into (sorted-map) curr)]
     (when (and inst (instance? Closeable inst))
       (try
         (.close ^Closeable inst)
@@ -311,19 +311,14 @@
   (let [p (promise)]
     (Signal/handle
       (Signal. "INT")
-      (proxy [SignalHandler] []
-        (handle [_]
-          (log/info "Received SIGINT")
-          (swap! servers stop!)
-          (log/info "Shutting down agents ...")
-          (log/info "Shutting down agents ... OK")
-          (deliver p nil)
-          (log/info "Delivered promise"))))
+      (reify SignalHandler
+        (handle [_ _]
+          (log/debug "Received SIGINT")
+          (deliver p :shutdown))))
     (run-main nil)
     @p
-    (log/info "about to exit!")
-    (Thread/sleep 3000)
-    (log/info "about to exit2!")))
+    (swap! servers stop!)
+    (shutdown-agents)))
 
 (comment
   (run-main {}))
