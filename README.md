@@ -95,7 +95,7 @@ The header `x-mikkmokk-duplicate-percentage` instructs mikkmokk to make two iden
 $ curl -H 'x-mikkmokk-duplicate-percentage: 100' http://localhost:8080
 
 # In the mikkmokk logs you will see something like:
-> Duplicate request returned identical HTTP status code 200 for 200 for GET /
+> Duplicate request returned identical HTTP status code 200 for GET /
 ```
 
 #### Only match a specific URI and/or request method
@@ -192,6 +192,23 @@ $ hey -n 100 http://localhost:8080
 Status code distribution:
   [200] 100 responses
 ```
+
+### All settings and their default values
+
+| Header name                        | Description                                                                                               | Default value |
+|------------------------------------|-----------------------------------------------------------------------------------------------------------|---------------|
+| x-mikkmokk-delay-after-ms          | Number of milliseconds to delay after the destination has replied                                         | 0             |
+| x-mikkmokk-delay-after-percentage  | Percentage chance of introducing delay after the destination has replied                                  | 0             |
+| x-mikkmokk-delay-before-ms         | Number of milliseconds to delay before accessing the destination                                          | 0             |
+| x-mikkmokk-delay-before-percentage | Percentage chance of introducing delay before accessing the destination                                   | 0             |
+| x-mikkmokk-destination-url         | Where to forward the request to. E.g. http://example.com                                                  | nil           |
+| x-mikkmokk-duplicate-percentage    | Percentage chance of introducing a duplicate request                                                      | 0             |
+| x-mikkmokk-fail-after-code         | The HTTP status code to reply with if a request was deliberately aborted after accessing the destination  | 502           |
+| x-mikkmokk-fail-after-percentage   | Percentage chance of aborting the request after accessing the destination                                 | 0             |
+| x-mikkmokk-fail-before-code        | The HTTP status code to reply with if a request was deliberately aborted before accessing the destination | 503           |
+| x-mikkmokk-fail-before-percentage  | Percentage chance of aborting the request before accessing the destination                                | 0             |
+| x-mikkmokk-match-method            | Only apply failures and/or delays to this HTTP method (GET, POST, HEAD, etc.)                             | *             |
+| x-mikkmokk-match-uri               | Only apply failures and/or delays to this HTTP uri                                                        | *             |
 
 ## Limitations
 No TLS/SSL support for the proxy server.
