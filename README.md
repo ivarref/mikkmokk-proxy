@@ -13,14 +13,15 @@ Test how well your services handles
 
 The following setup proxies to `http://example.com`:
 ```bash
-docker run --init --rm --name mikkmokk-proxy docker.io/ivarref/mikkmokk-proxy:v0.1.20 \
+docker run --rm --name mikkmokk-proxy \
   -e DESTINATION_URL=http://example.com \
   -e PROXY_BIND=0.0.0.0 \
   -e PROXY_PORT=8080 \
   -e ADMIN_BIND=0.0.0.0 \
   -e ADMIN_PORT=7070 \
   -p 8080:8080 \
-  -p 7070:7070
+  -p 7070:7070 \
+  docker.io/ivarref/mikkmokk-proxy:v0.1.20
 ```
 
 There are two ports being exposed:
