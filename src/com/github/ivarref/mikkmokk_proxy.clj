@@ -1,11 +1,12 @@
 (ns com.github.ivarref.mikkmokk-proxy
   (:require [aleph.http :as http]
-            [manifold.deferred :as d]
             [clojure.string :as str]
-            [clojure.tools.logging :as log])
-  (:import (java.util.regex Pattern)
+            [clojure.tools.logging :as log]
+            [manifold.deferred :as d])
+  (:import (java.io Closeable)
            (java.net InetSocketAddress)
-           (java.io Closeable))
+           (java.util.concurrent Executors)
+           (java.util.regex Pattern))
   (:gen-class))
 
 
@@ -271,7 +272,7 @@
 
 (defonce servers (atom {}))
 
-(defn run-main [{:keys [block?]}]
+(defn run-main [_]
   (let [proxy-bind (get-env "PROXY_BIND" "127.0.0.1")
         proxy-port (get-env "PROXY_PORT" "8080")
         admin-bind (get-env "ADMIN_BIND" "127.0.0.1")
@@ -283,27 +284,30 @@
                  (log/info "Stopping" (name nam) "server")
                  (.close ^Closeable inst)))
              {:admin (http/start-server (fn [req] (admin-handler req))
-                                        {:socket-address (InetSocketAddress. ^String admin-bind (parse-long admin-port))})
+                                        {:executor       (Executors/newFixedThreadPool 8)
+                                         :socket-address (InetSocketAddress. ^String admin-bind (parse-long admin-port))})
               :proxy (http/start-server (fn [req] (handler req))
-                                        {:socket-address (InetSocketAddress. ^String proxy-bind (parse-long proxy-port))})}))
+                                        {:executor       (Executors/newFixedThreadPool 256)
+                                         :socket-address (InetSocketAddress. ^String proxy-bind (parse-long proxy-port))})}))
     (log/info "Started admin server at" (str admin-bind ":" admin-port))
     (log/info "Started proxy server at" (str proxy-bind ":" proxy-port))
     (doseq [[k v] (into (sorted-map) (env-settings))]
-      (log/info "env setting" k v))
-    (when block?
-      (log/info "Blocking ...")
-      @(promise))))
+      (log/info "env setting" k v))))
 
 (defn -main
   "Main method used to start the system from a JAR file."
   [& _args]
-  (run-main {:block? true}))
+  (.addShutdownHook (Runtime/getRuntime)
+                    (Thread.
+                      ^Runnable
+                      (fn []
+                        (doseq [[nam inst] @servers]
+                          (when (and inst (instance? Closeable inst))
+                            (log/info "Stopping" (name nam) "server")
+                            (.close ^Closeable inst))))))
+  (run-main nil)
+  @(promise))
 
 (comment
   (run-main {}))
 
-(comment
-  (http/start-server (fn [req] (admin-handler req)) {:port 7070}))
-
-(comment
-  (http/start-server (fn [req] (handler (merge nil #_{:destination-url "http://example.com"} req))) {:port 8080}))
