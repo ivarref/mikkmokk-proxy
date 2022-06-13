@@ -212,7 +212,7 @@ Status code distribution:
 
 ## Limitations
 No TLS/SSL support for the proxy server.
-No WebSocket support.
+No WebSocket support. No SSE.
 
 ## Alternatives and related software
 
