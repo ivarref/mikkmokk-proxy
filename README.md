@@ -193,7 +193,7 @@ Status code distribution:
   [200] 100 responses
 ```
 
-### All settings and their default values
+### All settings and default values
 
 | Header name             | Description                                                                                               | Default value |
 |-------------------------|-----------------------------------------------------------------------------------------------------------|---------------|
@@ -209,6 +209,11 @@ Status code distribution:
 | fail-before-percentage  | Percentage chance of aborting the request before accessing the destination                                | 0             |
 | match-method            | Only apply failures and/or delays to this HTTP method (GET, POST, HEAD, etc.)                             | *             |
 | match-uri               | Only apply failures and/or delays to this HTTP uri (e.g. `/my-api/my-endpoint`)                           | *             |
+
+When using these settings as headers, you will need to prefix them with `x-mikkmokk-`.
+
+For environment variables, you will need to upper case them and replace dash with underscore, e.g.
+`destination-url` should become `DESTINATION_URL`.
 
 ## Limitations
 No TLS/SSL support for the proxy server.
