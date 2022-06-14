@@ -193,9 +193,11 @@
                 match-method
                 destination-url]} (parse-headers headers)]
     (if (empty? destination-url)
-      {:status  500
-       :headers {"content-type" "application/json"}
-       :body    (str "{" (json-kv "error" "missing-destination-url") "}" body-trailer)}
+      (do
+        (log/warn "missing destination-url")
+        {:status  500
+         :headers {"content-type" "application/json"}
+         :body    (str "{" (json-kv "error" "missing-destination-url") "}" body-trailer)})
       (let [host (second (str/split destination-url (re-pattern (Pattern/quote "://"))))
             method-uri (str (str/upper-case (name request-method)) " " uri)
             dest-headers (assoc headers "host" host)
