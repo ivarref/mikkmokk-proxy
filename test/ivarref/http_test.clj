@@ -1,4 +1,4 @@
-(ns ivarref.fwt-http-test
+(ns ivarref.http-test
   (:require [aleph.http :as http]
             [clj-commons.byte-streams :as bs]
             [clojure.test :refer [deftest is use-fixtures]]
@@ -33,9 +33,13 @@
   (is (= "http://example.com/" (:body (get-uri "/mikkmokk-fwd-http/example.com" {}))))
   (is (= "http://example.com/" (:body (get-uri "/mikkmokk-fwd-http/example.com/" {})))))
 
-#_(deftest match-header-kv
-    (is (= 200 (:status (get-uri "/" {"x-mikkmokk-destination-url"        "http://example.com"
-                                      "x-mikkmokk-match-header-name"      "x-user-id"
-                                      "x-mikkmokk-match-header-value"     "asdf"
-                                      "x-user-id"                         "not-asdf"
-                                      "x-mikkmokk-fail-before-percentage" "100"})))))
+(deftest match-uri-starts-with
+  (is (= 200 (:status (get-uri "/no-match" {"x-mikkmokk-destination-url"        "http://example.com"
+                                            "x-mikkmokk-match-uri-starts-with"  "/match"
+                                            "x-mikkmokk-fail-before-percentage" "100"}))))
+  (is (= 503 (:status (get-uri "/match" {"x-mikkmokk-destination-url"        "http://example.com"
+                                         "x-mikkmokk-match-uri-starts-with"  "/match"
+                                         "x-mikkmokk-fail-before-percentage" "100"}))))
+  (is (= 503 (:status (get-uri "/match/more" {"x-mikkmokk-destination-url"        "http://example.com"
+                                              "x-mikkmokk-match-uri-starts-with"  "/match"
+                                              "x-mikkmokk-fail-before-percentage" "100"})))))

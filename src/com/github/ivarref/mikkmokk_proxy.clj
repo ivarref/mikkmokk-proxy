@@ -34,6 +34,7 @@
 
    :match-uri               "*"
    :match-method            "*"
+   :match-uri-starts-with   "*"
 
    :destination-url         nil})
 
@@ -103,6 +104,7 @@
     (set-string-maybe :destination-url)
     (set-string-maybe :match-uri)
     (set-string-maybe :match-method)
+    (set-string-maybe :match-uri-starts-with)
     (select-keys (keys (default-headers)))))
 
 (defn parse-headers [headers]
@@ -132,6 +134,11 @@
     true
     :else
     false))
+
+(defn matches-uri-starts-with? [s substr]
+  (if (= "*" substr)
+    true
+    (str/starts-with? s substr)))
 
 (defn matches-method? [string-method method-kw]
   (cond
@@ -191,6 +198,7 @@
                 duplicate-percentage
                 match-uri
                 match-method
+                match-uri-starts-with
                 destination-url]} (parse-headers headers)]
     (if (empty? destination-url)
       (do
@@ -203,6 +211,7 @@
             dest-headers (assoc headers "host" host)
             url (str destination-url uri)
             match? (and (matches-uri? match-uri uri)
+                        (matches-uri-starts-with? uri match-uri-starts-with)
                         (matches-method? match-method request-method))
             delay-before-ms (if (and (> delay-before-percentage (rand-int 100)) match?)
                               delay-before-ms
