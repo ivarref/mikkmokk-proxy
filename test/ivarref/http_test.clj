@@ -43,3 +43,14 @@
   (is (= 503 (:status (get-uri "/match/more" {"x-mikkmokk-destination-url"        "http://example.com"
                                               "x-mikkmokk-match-uri-starts-with"  "/match"
                                               "x-mikkmokk-fail-before-percentage" "100"})))))
+
+(deftest match-header
+  (is (= 200 (:status (get-uri "/" {"x-mikkmokk-destination-url"        "http://example.com"
+                                    "x-mikkmokk-match-header-name"      "x-user-id"
+                                    "x-mikkmokk-match-header-value"     "some-user-id"
+                                    "x-mikkmokk-fail-before-percentage" "100"}))))
+  (is (= 503 (:status (get-uri "/" {"x-mikkmokk-destination-url"        "http://example.com"
+                                    "x-mikkmokk-match-header-name"      "x-user-id"
+                                    "x-mikkmokk-match-header-value"     "some-user-id"
+                                    "x-user-id"                         "some-user-id"
+                                    "x-mikkmokk-fail-before-percentage" "100"})))))

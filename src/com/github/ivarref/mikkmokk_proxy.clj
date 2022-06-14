@@ -36,6 +36,9 @@
    :match-method            "*"
    :match-uri-starts-with   "*"
 
+   :match-header-name       "*"
+   :match-header-value      "*"
+
    :destination-url         nil})
 
 (defn env-settings []
@@ -149,6 +152,12 @@
     :else
     false))
 
+(defn match-header-kv? [given-headers {:keys [match-header-name match-header-value]}]
+  (if (or (= "*" match-header-name)
+          (= "*" match-header-value))
+    true
+    (= match-header-value (get given-headers match-header-name))))
+
 (defn request [request-method url headers body]
   (try
     @(http/request
@@ -199,7 +208,7 @@
                 match-uri
                 match-method
                 match-uri-starts-with
-                destination-url]} (parse-headers headers)]
+                destination-url] :as parsed-headers} (parse-headers headers)]
     (if (empty? destination-url)
       (do
         (log/warn "missing destination-url")
@@ -212,7 +221,8 @@
             url (str destination-url uri)
             match? (and (matches-uri? match-uri uri)
                         (matches-uri-starts-with? uri match-uri-starts-with)
-                        (matches-method? match-method request-method))
+                        (matches-method? match-method request-method)
+                        (match-header-kv? headers parsed-headers))
             delay-before-ms (if (and (> delay-before-percentage (rand-int 100)) match?)
                               delay-before-ms
                               0)
