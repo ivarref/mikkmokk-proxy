@@ -1,7 +1,8 @@
 (ns com.github.ivarref.mikkmokk-proxy
   (:require [aleph.http :as http]
             [clojure.string :as str]
-            [clojure.tools.logging :as log])
+            [clojure.tools.logging :as log]
+            [lambdaisland.regal :as regal])
   (:import (java.io Closeable)
            (java.net InetSocketAddress)
            (java.util.concurrent Executors)
@@ -233,6 +234,34 @@
                  :headers headers
                  :body    body}))))))))
 
+(def fwd-http
+  (regal/regex
+    [:cat
+     "/mikkmokk-fwd-"
+     [:capture
+      [:alt "http" "https"]]
+     "/"
+     [:capture
+      [:+ [:not \/]]]
+     [:?? [:capture
+           [:cat "/"
+            [:* :any]]]]
+     :end]))
+
+(comment
+  (re-find fwd-http "/mikkmokk-fwd-http/pvo-backend-service.private.nsd.no"))
+
+(comment
+  (re-find fwd-http "/mikkmokk-fwd-http/pvo-backend-service.private.nsd.no/api/w00t"))
+
+(defn outer-handler [{:keys [uri] :as request}]
+  (if-let [[_ scheme host uri] (not-empty (re-find fwd-http uri))]
+    (let [uri (or uri "/")]
+      (handler (-> request
+                   (assoc :uri uri)
+                   (assoc-in [:headers "x-mikkmokk-destination-url"] (str scheme "://" host)))))
+    (handler request)))
+
 (defn admin-map->response [adm]
   (let [adm (into (sorted-map) (merge-with (fn [a b] (or b a))
                                            (default-headers)
@@ -297,7 +326,7 @@
              {:admin (http/start-server (fn [req] (admin-handler req))
                                         {:executor       (Executors/newFixedThreadPool 8)
                                          :socket-address (InetSocketAddress. ^String admin-bind (parse-long admin-port))})
-              :proxy (http/start-server (fn [req] (handler req))
+              :proxy (http/start-server (fn [req] (outer-handler req))
                                         {:executor       (Executors/newFixedThreadPool 256)
                                          :socket-address (InetSocketAddress. ^String proxy-bind (parse-long proxy-port))})}))
     (log/info "Started admin server at" (str admin-bind ":" admin-port))
