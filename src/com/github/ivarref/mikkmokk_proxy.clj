@@ -71,6 +71,9 @@
     "\n"
     ""))
 
+(defn downcase-headers [headers]
+  (update-keys headers str/lower-case))
+
 (defn get-mikkmokk-keys [headers]
   (reduce-kv
     (fn [o k v]
@@ -86,7 +89,8 @@
 
 (defn parse-headers-str-map [headers]
   (->
-    (get-mikkmokk-keys headers)
+    (downcase-headers headers)
+    (get-mikkmokk-keys)
     (parse-long-maybe :fail-before-percentage)
     (parse-long-maybe :fail-before-code)
     (parse-long-maybe :fail-after-percentage)
@@ -259,6 +263,7 @@
     (let [uri (or uri "/")]
       (handler (-> request
                    (assoc :uri uri)
+                   (update :headers downcase-headers)
                    (assoc-in [:headers "x-mikkmokk-destination-url"] (str scheme "://" host)))))
     (handler request)))
 
