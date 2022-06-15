@@ -7,7 +7,7 @@
 
 (defn with-server [f]
   (let [state {:one-off (atom #{})
-               :env {}}
+               :env     {}}
         server (http/start-server (fn [req] (mm/outer-handler state req)) {:executor (Executors/newFixedThreadPool 8) :port 8090})
         admin (http/start-server (fn [req] (mm/admin-handler state req)) {:executor (Executors/newFixedThreadPool 2) :port 9999})]
     (try
@@ -66,6 +66,13 @@
                                     "x-mikkmokk-match-header-value"     "some-user-id"
                                     "x-user-id"                         "some-user-id"
                                     "x-mikkmokk-fail-before-percentage" "100"})))))
+
+
+(deftest match-host
+  (is (= 200 (:status (get-uri "/mikkmokk-forward-http/example.com/"
+                               {"x-mikkmokk-match-host"             "peggy.gmbh.com"
+                                "x-mikkmokk-fail-before-percentage" "100"})))))
+
 
 
 (deftest one-off
