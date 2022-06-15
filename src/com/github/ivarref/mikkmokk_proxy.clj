@@ -37,6 +37,8 @@
    :match-method            "*"
    :match-uri-starts-with   "*"
 
+   :match-host              "*"
+
    :match-header-name       "*"
    :match-header-value      "*"
 
@@ -109,6 +111,7 @@
     (set-string-maybe :match-uri)
     (set-string-maybe :match-method)
     (set-string-maybe :match-uri-starts-with)
+    (set-string-maybe :match-host)
     (select-keys (keys (default-headers)))))
 
 (defn parse-headers [env headers]
@@ -195,24 +198,36 @@
       (log/debug "No duplicate request"))
     (rand-nth (filterv some? [resp1 resp2]))))
 
+(defn destination-url->host [destination-url]
+  (second (str/split destination-url (re-pattern (Pattern/quote "://")))))
+
+(defn matches-host? [match-host destination-url]
+  (when destination-url
+    (if (= "*" match-host)
+      true
+      (= (destination-url->host destination-url) match-host))))
+
 (defn matches? [{:keys [request-method uri headers]}
-                {:keys [match-uri match-uri-starts-with match-method] :as parsed-headers}]
+                {:keys [destination-url]}
+                {:keys [match-uri match-host match-uri-starts-with match-method] :as parsed-headers}]
   (and (matches-uri? match-uri uri)
+       (matches-host? match-host destination-url)
        (matches-uri-starts-with? uri match-uri-starts-with)
        (matches-method? match-method request-method)
        (match-header-kv? headers parsed-headers)))
 
-(defn maybe-disj-one-off [request one-off-set]
+(defn maybe-disj-one-off [request def-headers one-off-set]
   (let [match (->> one-off-set
-                   (filter (partial matches? request))
+                   (filter (partial matches? request def-headers))
                    (first))]
     (disj one-off-set match)))
 
-(defn maybe-pop-one-off! [one-off request default]
-  (let [[old new] (swap-vals! one-off (partial maybe-disj-one-off request))]
+(defn maybe-pop-one-off! [one-off request def-headers]
+  (let [[old new] (swap-vals! one-off (partial maybe-disj-one-off request def-headers))]
     (if-some [found (first (set/difference old new))]
-      (assoc found :destination-url (:destination-url default))
-      default)))
+      (assoc found :destination-url (:destination-url def-headers))
+      def-headers)))
+
 
 (defn handler [{:keys [env one-off]} {:keys [request-method uri headers body] :as request}]
   (let [{:keys [fail-before-percentage
@@ -231,11 +246,10 @@
         {:status  500
          :headers {"content-type" "application/json"}
          :body    (str "{" (json-kv "error" "missing-destination-url") "}" body-trailer)})
-      (let [host (second (str/split destination-url (re-pattern (Pattern/quote "://"))))
-            method-uri (str (str/upper-case (name request-method)) " " uri)
-            dest-headers (assoc headers "host" host)
+      (let [method-uri (str (str/upper-case (name request-method)) " " uri)
+            dest-headers (assoc headers "host" (destination-url->host destination-url))
             url (str destination-url uri)
-            match? (matches? request parsed-headers)
+            match? (matches? request parsed-headers parsed-headers)
             delay-before-ms (if (and (> delay-before-percentage (rand-int 100)) match?)
                               delay-before-ms
                               0)
@@ -387,7 +401,7 @@
         one-off (atom #{})
         env (env-settings)
         cfg {:one-off one-off
-             :env env}]
+             :env     env}]
     (swap! servers
            (fn [curr]
              (stop! curr)
