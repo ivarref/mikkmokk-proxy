@@ -97,6 +97,13 @@
   (is (= 503 (:status (get-uri "/mikkmokk-forward-http/example.com/" {}))))
   (is (= 503 (:status (get-uri "/mikkmokk-forward-http/example.com/" {}))))
   (is (= 200 (:status (get-uri "/mikkmokk-forward-http/example.com/" {}))))
+
+  (is (= 200 (:status (post-admin-uri "/api/v1/one-off" {"x-mikkmokk-match-host"             "example.com"
+                                                         "x-mikkmokk-match-uri"              "/some-endpoint"
+                                                         "x-mikkmokk-fail-before-percentage" "100"}))))
+  (is (= 200 (:status (get-uri "/mikkmokk-forward-http/example.com/some-endpoint2" {}))))
+  (is (= 200 (:status (get-uri "/mikkmokk-forward-http/peggy.gmbh.com/some-endpoint" {}))))
+  (is (= 503 (:status (get-uri "/mikkmokk-forward-http/example.com/some-endpoint" {}))))
   #_(is (= 503 (:status (get-uri "/" {"x-mikkmokk-destination-url"        "http://example.com"
                                       "x-mikkmokk-match-header-name"      "x-user-id"
                                       "x-mikkmokk-match-header-value"     "some-user-id"
