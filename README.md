@@ -30,7 +30,7 @@ There are two ports being exposed:
 
 There are three ways mikkmokk can be instructed to inject faults:
 * Dynamically per request using HTTP headers when accessing the reverse proxy.
-* Setting new defaults at runtime using the admin server.
+* Setting new defaults or one-off errors at runtime using the admin server.
 * Using environment variables when starting the proxy.
 
 #### Issue a regular request
@@ -147,8 +147,12 @@ $ curl -XPOST -H 'x-mikkmokk-fail-before-percentage: 20' http://localhost:7070/a
  "fail-after-percentage":0,
  "fail-before-code":503,
  "fail-before-percentage":20,    # <-- fail-before-percentage now has a new default value
+ "match-header-name":"*",
+ "match-header-value":"*",
+ "match-host":"*",
  "match-method":"*",
- "match-uri":"*"}
+ "match-uri":"*",
+ "match-uri-starts-with":"*"}
 
 # Using the hey load generator https://github.com/rakyll/hey, 
 # we can test if 20% of requests fail:
@@ -170,8 +174,12 @@ $ curl http://localhost:7070/api/v1/list
  "fail-after-percentage":0,
  "fail-before-code":503,
  "fail-before-percentage":20,
+ "match-header-name":"*",
+ "match-header-value":"*",
+ "match-host":"*",
  "match-method":"*",
- "match-uri":"*"}
+ "match-uri":"*",
+ "match-uri-starts-with":"*"}
  
 # Reset the admin settings
 $ curl -XPOST http://localhost:7070/api/v1/reset
@@ -185,8 +193,12 @@ $ curl -XPOST http://localhost:7070/api/v1/reset
  "fail-after-percentage":0,
  "fail-before-code":503,
  "fail-before-percentage":0,    # <-- fail-before-percentage now has the environment default
+ "match-header-name":"*",
+ "match-header-value":"*",
+ "match-host":"*",
  "match-method":"*",
- "match-uri":"*"}
+ "match-uri":"*",
+ "match-uri-starts-with":"*"}
 
 $ hey -n 100 http://localhost:8080
 ...
@@ -208,8 +220,12 @@ Status code distribution:
 | fail-after-percentage   | Percentage chance of aborting the request after accessing the destination                                 | 0             |
 | fail-before-code        | The HTTP status code to reply with if a request was deliberately aborted before accessing the destination | 503           |
 | fail-before-percentage  | Percentage chance of aborting the request before accessing the destination                                | 0             |
+| match-header-name       | Only apply failures and/or delays if this HTTP header name's value is identical to ...                    | *             |
+| match-header-value      | the value in this header. I.e. use this pair of headers to match an arbitrary header value.               | *             |
+| match-host              | Only apply failures and/or delays if the destination host matches this value.                             | *             |
 | match-method            | Only apply failures and/or delays to this HTTP method (GET, POST, HEAD, etc.)                             | *             |
 | match-uri               | Only apply failures and/or delays to this HTTP uri (e.g. `/my-api/my-endpoint`)                           | *             |
+| match-uri-starts-with   | Only apply failures and/or delays if the HTTP uri starts with this prefix                                 | *             |
 
 When using these settings as headers, you will need to prefix them with `x-mikkmokk-`.
 
