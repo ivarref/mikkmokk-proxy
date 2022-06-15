@@ -1,5 +1,6 @@
 (ns com.github.ivarref.mikkmokk-proxy
   (:require [aleph.http :as http]
+            [clojure.set :as set]
             [clojure.string :as str]
             [clojure.tools.logging :as log]
             [lambdaisland.regal :as regal])
@@ -110,10 +111,10 @@
     (set-string-maybe :match-uri-starts-with)
     (select-keys (keys (default-headers)))))
 
-(defn parse-headers [headers]
+(defn parse-headers [env headers]
   (merge-with (fn [a b] (or b a))
               (default-headers)
-              (env-settings)
+              env
               @admin-settings
               (parse-headers-str-map headers)))
 
@@ -158,7 +159,7 @@
     true
     (= match-header-value (get given-headers match-header-name))))
 
-(defn request [request-method url headers body]
+(defn single-request [request-method url headers body]
   (try
     @(http/request
        {:request-method request-method
@@ -181,10 +182,10 @@
                            body-trailer)}))))))
 
 (defn make-request [match? duplicate-percentage request-method uri url headers body]
-  (let [req1 (future (request request-method url headers body))
+  (let [req1 (future (single-request request-method url headers body))
         duplicate? (and (> duplicate-percentage (rand-int 100)) match?)
         req2 (future (when duplicate?
-                       (request request-method url headers body)))
+                       (single-request request-method url headers body)))
         resp1 @req1
         resp2 @req2]
     (if duplicate?
@@ -194,8 +195,26 @@
       (log/debug "No duplicate request"))
     (rand-nth (filterv some? [resp1 resp2]))))
 
+(defn matches? [{:keys [request-method uri headers]}
+                {:keys [match-uri match-uri-starts-with match-method] :as parsed-headers}]
+  (and (matches-uri? match-uri uri)
+       (matches-uri-starts-with? uri match-uri-starts-with)
+       (matches-method? match-method request-method)
+       (match-header-kv? headers parsed-headers)))
 
-(defn handler [{:keys [request-method uri headers body]}]
+(defn maybe-disj-one-off [request one-off-set]
+  (let [match (->> one-off-set
+                   (filter (partial matches? request))
+                   (first))]
+    (disj one-off-set match)))
+
+(defn maybe-pop-one-off! [one-off request default]
+  (let [[old new] (swap-vals! one-off (partial maybe-disj-one-off request))]
+    (if-some [found (first (set/difference old new))]
+      (assoc found :destination-url (:destination-url default))
+      default)))
+
+(defn handler [{:keys [env one-off]} {:keys [request-method uri headers body] :as request}]
   (let [{:keys [fail-before-percentage
                 fail-before-code
                 fail-after-percentage
@@ -205,10 +224,7 @@
                 delay-after-percentage
                 delay-after-ms
                 duplicate-percentage
-                match-uri
-                match-method
-                match-uri-starts-with
-                destination-url] :as parsed-headers} (parse-headers headers)]
+                destination-url] :as parsed-headers} (maybe-pop-one-off! one-off request (parse-headers env headers))]
     (if (empty? destination-url)
       (do
         (log/warn "missing destination-url")
@@ -219,10 +235,7 @@
             method-uri (str (str/upper-case (name request-method)) " " uri)
             dest-headers (assoc headers "host" host)
             url (str destination-url uri)
-            match? (and (matches-uri? match-uri uri)
-                        (matches-uri-starts-with? uri match-uri-starts-with)
-                        (matches-method? match-method request-method)
-                        (match-header-kv? headers parsed-headers))
+            match? (matches? request parsed-headers)
             delay-before-ms (if (and (> delay-before-percentage (rand-int 100)) match?)
                               delay-before-ms
                               0)
@@ -254,7 +267,15 @@
                                "}"
                                body-trailer)})
               (do
-                (log/info "HTTP" status method-uri "from destination")
+                (if (or (= 0
+                           fail-before-percentage
+                           fail-after-percentage
+                           duplicate-percentage
+                           delay-before-percentage
+                           delay-after-percentage)
+                        (not match?))
+                  (log/info "HTTP" status method-uri "from destination. No match / all percentages were zero.")
+                  (log/info "HTTP" status method-uri "from destination"))
                 {:status  status
                  :headers headers
                  :body    body}))))))))
@@ -281,19 +302,19 @@
 (comment
   (re-find fwd-http "/mikkmokk-fwd-http/pvo-backend-service.private.nsd.no/api/w00t"))
 
-(defn outer-handler [{:keys [uri] :as request}]
+(defn outer-handler [cfg {:keys [uri] :as request}]
   (if-let [[_ scheme host uri] (not-empty (re-find fwd-http uri))]
     (let [uri (or uri "/")]
-      (handler (-> request
-                   (assoc :uri uri)
-                   (update :headers downcase-headers)
-                   (assoc-in [:headers "x-mikkmokk-destination-url"] (str scheme "://" host)))))
-    (handler request)))
+      (handler cfg (-> request
+                       (assoc :uri uri)
+                       (update :headers downcase-headers)
+                       (assoc-in [:headers "x-mikkmokk-destination-url"] (str scheme "://" host)))))
+    (handler cfg request)))
 
-(defn admin-map->response [adm]
+(defn admin-map->response [env adm]
   (let [adm (into (sorted-map) (merge-with (fn [a b] (or b a))
                                            (default-headers)
-                                           (env-settings)
+                                           env
                                            adm))]
     {:status  200
      :headers {"content-type" "application/json"}
@@ -301,16 +322,31 @@
                    (str/join ",\n " (mapv (fn [[k v]] (json-kv k v)) adm))
                    "}" body-trailer)}))
 
-(defn admin-handler [{:keys [headers uri request-method]}]
+(defn admin-handler [{:keys [one-off env]} {:keys [headers uri request-method]}]
   (cond
     (and (= request-method :post) (= uri "/api/v1/update"))
-    (admin-map->response (swap! admin-settings merge (parse-headers-str-map headers)))
+    (admin-map->response env (swap! admin-settings merge (parse-headers-str-map headers)))
+
+    (and (= request-method :post) (= uri "/api/v1/one-off"))
+    (do
+      (swap! one-off conj (-> (merge-with
+                                (fn [a b] (or b a))
+                                {:one-off/id (random-uuid)}
+                                (default-headers)
+                                (parse-headers-str-map headers))
+                              (dissoc :destination-url)))
+      {:status  200
+       :headers {"content-type" "application/json"}
+       :body    (str "{"
+                     (json-kv "service" "mikkmokk") ","
+                     (json-kv "message" "Added one-off")
+                     "}" body-trailer)})
 
     (and (= request-method :post) (= uri "/api/v1/reset"))
-    (admin-map->response (reset! admin-settings (parse-headers-str-map headers)))
+    (admin-map->response env (reset! admin-settings (parse-headers-str-map headers)))
 
     (and (= request-method :get) (= uri "/api/v1/list"))
-    (admin-map->response @admin-settings)
+    (admin-map->response env @admin-settings)
 
     (and (= request-method :get) (= uri "/"))
     {:status  200
@@ -347,19 +383,23 @@
   (let [proxy-bind (get-env "PROXY_BIND" "127.0.0.1")
         proxy-port (get-env "PROXY_PORT" "8080")
         admin-bind (get-env "ADMIN_BIND" "127.0.0.1")
-        admin-port (get-env "ADMIN_PORT" "7070")]
+        admin-port (get-env "ADMIN_PORT" "7070")
+        one-off (atom #{})
+        env (env-settings)
+        cfg {:one-off one-off
+             :env env}]
     (swap! servers
            (fn [curr]
              (stop! curr)
-             {:admin (http/start-server (fn [req] (admin-handler req))
+             {:admin (http/start-server (fn [req] (admin-handler cfg req))
                                         {:executor       (Executors/newFixedThreadPool 8)
                                          :socket-address (InetSocketAddress. ^String admin-bind (parse-long admin-port))})
-              :proxy (http/start-server (fn [req] (outer-handler req))
+              :proxy (http/start-server (fn [req] (outer-handler cfg req))
                                         {:executor       (Executors/newFixedThreadPool 256)
                                          :socket-address (InetSocketAddress. ^String proxy-bind (parse-long proxy-port))})}))
     (log/info "Started admin server at" (str admin-bind ":" admin-port))
     (log/info "Started proxy server at" (str proxy-bind ":" proxy-port))
-    (doseq [[k v] (into (sorted-map) (env-settings))]
+    (doseq [[k v] (into (sorted-map) env)]
       (log/info "env setting" k v))))
 
 (defn -main
