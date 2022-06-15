@@ -193,8 +193,8 @@
         resp2 @req2]
     (if duplicate?
       (if (not= (:status resp1) (:status resp2))
-        (log/info "Duplicate request returned different HTTP status codes" (:status resp1) "vs" (:status resp2) "for" (str/upper-case (name request-method)) uri)
-        (log/info "Duplicate request returned identical HTTP status code" (:status resp1) "for" (str/upper-case (name request-method)) uri))
+        (log/info "Duplicate request returned different HTTP status codes" (:status resp1) "vs" (:status resp2) "for" (str/upper-case (name request-method)) url)
+        (log/info "Duplicate request returned identical HTTP status code" (:status resp1) "for" (str/upper-case (name request-method)) url))
       (log/debug "No duplicate request"))
     (rand-nth (filterv some? [resp1 resp2]))))
 
@@ -246,7 +246,7 @@
         {:status  500
          :headers {"content-type" "application/json"}
          :body    (str "{" (json-kv "error" "missing-destination-url") "}" body-trailer)})
-      (let [method-uri (str (str/upper-case (name request-method)) " " uri)
+      (let [method-uri-from (str (str/upper-case (name request-method)) " " uri " from " (destination-url->host destination-url))
             dest-headers (assoc headers "host" (destination-url->host destination-url))
             url (str destination-url uri)
             match? (matches? request parsed-headers parsed-headers)
@@ -261,7 +261,7 @@
           (Thread/sleep delay-before-ms))
         (if (and (> fail-before-percentage (rand-int 100)) match?)
           (do
-            (log/info "HTTP" fail-before-code method-uri "fail-before")
+            (log/info "HTTP" fail-before-code method-uri-from "fail-before")
             {:status  fail-before-code
              :headers {"content-type" "application/json"}
              :body    (str "{" (json-kv "error" "fail-before") "}" body-trailer)})
@@ -271,7 +271,7 @@
               (Thread/sleep delay-after-ms))
             (if (and (> fail-after-percentage (rand-int 100)) match?)
               (do
-                (log/info "HTTP" fail-after-code method-uri "fail-after. Destination response code:" status)
+                (log/info "HTTP" fail-after-code method-uri-from "fail-after. Destination response code:" status)
                 {:status  fail-after-code
                  :headers {"content-type" "application/json"}
                  :body    (str "{"
@@ -288,8 +288,8 @@
                            delay-before-percentage
                            delay-after-percentage)
                         (not match?))
-                  (log/info "HTTP" status method-uri "from destination. No match / all percentages were zero.")
-                  (log/info "HTTP" status method-uri "from destination"))
+                  (log/info "HTTP" status (str method-uri-from ". No match / all percentages were zero."))
+                  (log/info "HTTP" status method-uri-from))
                 {:status  status
                  :headers headers
                  :body    body}))))))))
