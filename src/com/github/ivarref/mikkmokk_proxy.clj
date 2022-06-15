@@ -262,7 +262,9 @@
 (def fwd-http
   (regal/regex
     [:cat
-     "/mikkmokk-fwd-"
+     [:alt
+      "/mikkmokk-fwd-"
+      "/mikkmokk-forward-"]
      [:capture
       [:alt "http" "https"]]
      "/"
