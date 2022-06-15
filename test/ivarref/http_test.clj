@@ -31,7 +31,8 @@
   (is (= "http://example.com/" (:body (get-uri "/" {"x-mikkmokk-destination-url" "http://example.com"}))))
   (is (= 200 (:status (get-uri "/" {"x-mikkmokk-destination-url" "http://example.com"}))))
   (is (= "http://example.com/" (:body (get-uri "/mikkmokk-fwd-http/example.com" {}))))
-  (is (= "http://example.com/" (:body (get-uri "/mikkmokk-fwd-http/example.com/" {})))))
+  (is (= "http://example.com/" (:body (get-uri "/mikkmokk-fwd-http/example.com/" {}))))
+  (is (= "http://example.com/" (:body (get-uri "/mikkmokk-forward-http/example.com/" {})))))
 
 (deftest match-uri-starts-with
   (is (= 200 (:status (get-uri "/no-match" {"x-mikkmokk-destination-url"        "http://example.com"
