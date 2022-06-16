@@ -114,7 +114,7 @@ The header `x-mikkmokk-duplicate-percentage` instructs mikkmokk to make two iden
 $ curl -H 'x-mikkmokk-duplicate-percentage: 100' http://localhost:8080
 
 # In the mikkmokk logs you will see something like:
-> Duplicate request returned identical HTTP status code 200 for GET /
+> Duplicate request returned identical HTTP status code 200 for GET http://example.com/
 ```
 
 #### Only match a specific URI and/or request method
