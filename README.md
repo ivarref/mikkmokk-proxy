@@ -36,7 +36,7 @@ mikkmokk supports proxying to arbitrary URLs.
 
 The following setup proxies to `http://example.com`:
 ```bash
-docker run --rm --name mikkmokk-proxy \
+$ docker run --rm --name mikkmokk-proxy \
   -e DESTINATION_URL=http://example.com \
   -e PROXY_BIND=0.0.0.0 \
   -e PROXY_PORT=8080 \
@@ -99,7 +99,7 @@ $ curl -v -H 'x-mikkmokk-fail-after-percentage: 100' http://localhost:8080
 < HTTP/1.1 502 Bad Gateway
 < Content-Type: application/json
 ...
-{"error":"fail-after","destination-response-code":"200"}
+{"error":"fail-after","destination-response-code":200}
 ```
 
 The field `destination-response-code` states which HTTP status code the destination
