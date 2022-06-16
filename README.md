@@ -1,11 +1,33 @@
 # mikkmokk-proxy
 
-mikkmokk-proxy is a reverse proxy server that injects faults on the HTTP layer.
+mikkmokk-proxy is an unobtrusive reverse proxy server that injects faults on the HTTP layer.
 
-Test how well your services handles
+Have you ever wanted to test how well your (backend|frontend) services handles
 * failed requests
 * duplicate requests
 * delayed requests
+
+mikkmokk-proxy is — literally — your gateway drug.
+
+## Overview
+
+mikkmokk can inject five different types of faults:
+* fail a request before the destination is reached
+* fail a request after the destination is reached
+* add a delay before accessing the destination
+* add a delay after accessing the destination
+* add a duplicate a request
+
+mikkmokk does fault injection based on a percentage chance.
+The scope for fault injection may be narrowed further by settings
+various matching criteria (URI, request method, header name/value pair, etc).
+
+The percentage chances, and related settings, can be 
+set both statically and dynamically:
+* Using proxy headers `x-mikkmokk-...` when accessing the reverse proxy.
+* At runtime using the admin API, both for setting new defaults and for introducing one-off errors.
+* At startup time using environment variables.
+
 
 ## Usage
 
@@ -21,17 +43,12 @@ docker run --rm --name mikkmokk-proxy \
   -e ADMIN_PORT=7070 \
   -p 8080:8080 \
   -p 7070:7070 \
-  docker.io/ivarref/mikkmokk-proxy:v0.1.29
+  docker.io/ivarref/mikkmokk-proxy:v0.1.40
 ```
 
 There are two ports being exposed:
 * The reverse proxy on port 8080.
 * The admin server on port 7070.
-
-There are three ways mikkmokk can be instructed to inject faults:
-* Dynamically per request using HTTP headers when accessing the reverse proxy.
-* Setting new defaults or one-off errors at runtime using the admin server.
-* Using environment variables when starting the proxy.
 
 #### Issue a regular request
 
@@ -111,6 +128,31 @@ $ curl -H 'x-mikkmokk-match-uri: /something' \
 
 The default value of the `x-mikkmokk-match-uri` and `x-mikkmokk-match-method` headers is `*`, meaning that all URIs and all request methods will match.
 
+#### Only match a given header name/value pair
+
+```
+$ curl -H 'x-mikkmokk-match-header-name: x-some-header' \
+       -H 'x-mikkmokk-match-header-value: foobar' \
+       -H 'x-mikkmokk-fail-before-percentage: 100' \
+       http://localhost:8080/
+... request succeeds, header-name and -value did not match.
+
+$ curl -H 'x-mikkmokk-match-header-name: x-some-header' \
+       -H 'x-mikkmokk-match-header-value: foobar' \
+       -H 'x-mikkmokk-fail-before-percentage: 100' \
+       -H 'x-some-header: foobar' \
+       http://localhost:8080/
+{"error":"fail-before"}
+```
+
+Here we see that the first request did not fail, and thus `x-mikkmokk-match-header-name` and
+`x-mikkmokk-header-value` did not match. 
+
+On the second request it does fail however, and
+thus the header name-value pair did match. 
+We explicitly set `x-some-header` ourselves.
+In a more real world setting it would be set by some gateway.
+
 #### Inserting delays
 
 Delays may be inserted using `x-mikkmokk-delay-before-percentage` and
@@ -129,6 +171,34 @@ This delay will be inserted before the destination service is accessed.
 It's also possible to inject delays after the destination service has
 been accessed using `x-mikkmokk-delay-after-percentage` and
 `x-mikkmokk-delay-after-ms`.
+
+### Use the admin API to introduce one-off errors
+
+Let's say that you want to test how a frontend handles a failed request,
+but you do not want edit the source code of the frontend. You also
+do not want to create any unnecessary errors.
+
+You can use the admin API for one-off errors for these tasks: 
+
+```
+# Notice the port 7070 here, which is where we exposed the admin
+# API earlier:
+$ curl -XPOST -H 'x-mikkmokk-fail-before-percentage: 100' \
+        http://localhost:7070/api/v1/one-off
+{"service":"mikkmokk","message":"Added one-off"}
+
+# The next request now fails:
+$ curl http://localhost:8080
+{"error":"fail-before"}
+
+# The request after succeeds:
+$ curl http://localhost:8080
+...<h1>Example Domain</h1>...
+```
+
+The one-off API also supports matching on URI, request method,
+headers, etc.
+
 
 ### Use the admin API to change defaults at runtime
 
@@ -206,6 +276,21 @@ Status code distribution:
   [200] 100 responses
 ```
 
+### Flexible URL forwarding
+
+mikkmokk supports a flexible URL forwarding scheme.
+You do not need to use a single mikkmokk instance for every service you want to test.
+Instead you can tell mikkmokk where to forward to using the URI:
+
+```
+$ curl http://localhost:8080/mikkmokk-forward-http/example.org
+... <h1>Example Domain</h1>
+
+# https scheme is also supported
+$ curl http://localhost:8080/mikkmokk-forward-https/example.org/some-other-endpoint
+... <h1>Example Domain</h1>
+```
+
 ### All settings and default values
 
 | Header name             | Description                                                                                               | Default value |
@@ -236,6 +321,21 @@ For environment variables, you will need to upper case them and replace dash wit
 No TLS/SSL support for the proxy server.
 No WebSocket support. No SSE.
 
+## NAQ
+
+> Should I run mikkmokk-proxy on a public, untrusted network?
+
+No.
+
+> Should I run mikkmokk-proxy in production?
+
+No.
+
+> NAQ?
+
+Yes, that's Never Asked Questions. ¯\\\_(ツ)\_/¯
+
+
 ## Alternatives and related software
 
 [envoyproxy](https://www.envoyproxy.io/) has a [fault injection filter](https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/fault_filter#config-http-filters-fault-injection) that seems equivalent to `x-mikkmokk-fail-before-` headers.
@@ -247,6 +347,8 @@ No WebSocket support. No SSE.
 [clusterfk/chaos-proxy](https://github.com/clusterfk/chaos-proxy): ClusterFk Chaos Proxy is an unreliable HTTP proxy you can rely on.
 
 [toxiproxy](https://github.com/Shopify/toxiproxy): A chaotic TCP proxy.
+
+## Changelog
 
 
 ## License
