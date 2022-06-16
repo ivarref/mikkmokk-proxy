@@ -341,7 +341,7 @@ No.
 Yes, that's Never Asked Questions. ¯\\\_(ツ)\_/¯
 
 ## Limitations
-No TLS/SSL support for the proxy server.
+No TLS/SSL support for the proxy server (bind).
 No WebSocket support. No SSE.
 
 There is no attempt at validating `-percentage` nor `-code` properties.
