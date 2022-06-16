@@ -307,7 +307,7 @@ $ curl http://localhost:8080/mikkmokk-forward-https/example.org/some-other-endpo
 | fail-before-percentage  | Percentage chance of aborting the request before accessing the destination                                | 0             |
 | match-header-name       | Only apply failures and/or delays if this HTTP header name's value is identical to ...                    | *             |
 | match-header-value      | the value in this header. I.e. use this pair of headers to match an arbitrary header value.               | *             |
-| match-host              | Only apply failures and/or delays if the destination host matches this value.                             | *             |
+| match-host              | Only apply failures and/or delays if the destination host matches this value, e.g. `example.org`          | *             |
 | match-method            | Only apply failures and/or delays to this HTTP method (GET, POST, HEAD, etc.)                             | *             |
 | match-uri               | Only apply failures and/or delays to this HTTP uri (e.g. `/my-api/my-endpoint`)                           | *             |
 | match-uri-starts-with   | Only apply failures and/or delays if the HTTP uri starts with this prefix                                 | *             |
