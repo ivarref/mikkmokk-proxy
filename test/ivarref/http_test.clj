@@ -11,10 +11,10 @@
         server (http/start-server (fn [req] (mm/outer-handler state req)) {:executor (Executors/newFixedThreadPool 8) :port 8090})
         admin (http/start-server (fn [req] (mm/admin-handler state req)) {:executor (Executors/newFixedThreadPool 2) :port 9999})]
     (try
-      (with-redefs [mm/single-request (fn [_request-method url _headers _body]
+      (with-redefs [mm/single-request (fn [_request-method url headers _body]
                                         {:status  200
                                          :body    url
-                                         :headers {}})]
+                                         :headers (dissoc headers "content-length")})]
         (f))
       (finally
         (.close server)
@@ -109,3 +109,23 @@
                                       "x-mikkmokk-match-header-value"     "some-user-id"
                                       "x-user-id"                         "some-user-id"
                                       "x-mikkmokk-fail-before-percentage" "100"})))))
+
+(defn origin [resp]
+  (get-in resp [:headers "origin"]))
+
+(deftest modified-headers
+  (is (= {"host" "example.com"}
+         (-> (get-uri "/mikkmokk-forward-http/example.com/" {})
+             :headers
+             (select-keys ["host" "origin"]))))
+  (is (= {"host"   "example.com"
+          "origin" "http://example.com"}
+         (-> (get-uri "/mikkmokk-forward-http/example.com/" {"origin" "http://localhost:8090"})
+             :headers
+             (select-keys ["host" "origin"]))))
+  (is (= "http://example.com:8080"
+         (origin (get-uri "/mikkmokk-forward-http/example.com:8080/" {"origin" "http://localhost:8090"}))))
+  (is (= "https://example.com:8080"
+         (origin (get-uri "/mikkmokk-forward-https/example.com:8080/" {"origin" "http://localhost:8090"}))))
+  (is (= "https://example.com:8080"
+         (origin (get-uri "/mikkmokk-forward-https/example.com:8080/api" {"origin" "http://localhost:8090"})))))

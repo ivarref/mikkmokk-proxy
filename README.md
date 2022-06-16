@@ -7,7 +7,7 @@ Have you ever wanted to test how well your (backend|frontend) services handles
 * duplicate requests
 * delayed requests
 
-mikkmokk-proxy is — literally — your gateway drug.
+mikkmokk-proxy is — literally — a gateway drug for resiliency testing on the HTTP layer.
 
 ## Overview
 
@@ -28,6 +28,7 @@ set both statically and dynamically:
 * At runtime using the admin API, both for setting new defaults and for introducing one-off errors.
 * At startup time using environment variables.
 
+mikkmokk supports proxying to arbitrary URLs.
 
 ## Usage
 
@@ -276,10 +277,11 @@ Status code distribution:
   [200] 100 responses
 ```
 
-### Flexible URL forwarding
+### Proxying to arbitrary URLs
 
-mikkmokk supports a flexible URL forwarding scheme.
-You do not need to use a single mikkmokk instance for every service you want to test.
+mikkmokk supports a flexible URL proxying scheme.
+You do not need to create a single mikkmokk instance for every service you want to 
+proxy to.
 Instead you can tell mikkmokk where to forward to using the URI:
 
 ```
@@ -290,6 +292,11 @@ $ curl http://localhost:8080/mikkmokk-forward-http/example.org
 $ curl http://localhost:8080/mikkmokk-forward-https/example.org/some-other-endpoint
 ... <h1>Example Domain</h1>
 ```
+
+### Headers modified by mikkmokk
+
+mikkmokk will automatically edit the `host` HTTP header when accessing the destination.
+It will also update the `origin` HTTP header if present.
 
 ### All settings and default values
 
@@ -317,10 +324,6 @@ When using these settings as headers, you will need to prefix them with `x-mikkm
 For environment variables, you will need to upper case them and replace dash with underscore, e.g.
 `destination-url` should become `DESTINATION_URL`.
 
-## Limitations
-No TLS/SSL support for the proxy server.
-No WebSocket support. No SSE.
-
 ## NAQ
 
 > Should I run mikkmokk-proxy on a public, untrusted network?
@@ -335,6 +338,9 @@ No.
 
 Yes, that's Never Asked Questions. ¯\\\_(ツ)\_/¯
 
+## Limitations
+No TLS/SSL support for the proxy server.
+No WebSocket support. No SSE.
 
 ## Alternatives and related software
 

@@ -201,6 +201,9 @@
 (defn destination-url->host [destination-url]
   (second (str/split destination-url (re-pattern (Pattern/quote "://")))))
 
+(defn destination-url->scheme [destination-url]
+  (first (str/split destination-url (re-pattern (Pattern/quote "://")))))
+
 (defn matches-host? [match-host destination-url]
   (when destination-url
     (if (= "*" match-host)
@@ -247,7 +250,13 @@
          :headers {"content-type" "application/json"}
          :body    (str "{" (json-kv "error" "missing-destination-url") "}" body-trailer)})
       (let [method-uri-from (str (str/upper-case (name request-method)) " " uri " from " (destination-url->host destination-url))
-            dest-headers (assoc headers "host" (destination-url->host destination-url))
+            dest-headers (-> headers
+                             (assoc "host" (destination-url->host destination-url))
+                             (merge
+                               (when (not-empty (get headers "origin"))
+                                 {"origin" (str (destination-url->scheme destination-url)
+                                                "://"
+                                                (destination-url->host destination-url))})))
             url (str destination-url uri)
             match? (matches? request parsed-headers parsed-headers)
             delay-before-ms (if (and (> delay-before-percentage (rand-int 100)) match?)
