@@ -361,6 +361,8 @@ There is no attempt at validating `-percentage` nor `-code` properties.
 
 ## Changelog
 
+#### 2022-06-16 v0.1.42
+First publicly announced release.
 
 ## License
 
