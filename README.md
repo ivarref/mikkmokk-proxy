@@ -342,6 +342,9 @@ Yes, that's Never Asked Questions. ¯\\\_(ツ)\_/¯
 No TLS/SSL support for the proxy server.
 No WebSocket support. No SSE.
 
+There is no attempt at validating `-percentage` nor `-code` properties.
+`-percentage` should be [0, 100], and `-code` should be [200, 600).
+
 ## Alternatives and related software
 
 [envoyproxy](https://www.envoyproxy.io/) has a [fault injection filter](https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/fault_filter#config-http-filters-fault-injection) that seems equivalent to `x-mikkmokk-fail-before-` headers.
