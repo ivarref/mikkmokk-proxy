@@ -129,6 +129,8 @@ $ curl -H 'x-mikkmokk-match-uri: /something' \
 
 The default value of the `x-mikkmokk-match-uri` and `x-mikkmokk-match-method` headers is `*`, meaning that all URIs and all request methods will match.
 
+If you only want to match a given URI prefix, you may use the `x-mikkmokk-match-uri-starts-with` header.
+
 #### Only match a given header name/value pair
 
 ```
