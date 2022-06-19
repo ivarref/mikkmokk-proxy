@@ -44,7 +44,7 @@ $ docker run --rm --name mikkmokk-proxy \
   -e ADMIN_PORT=7070 \
   -p 8080:8080 \
   -p 7070:7070 \
-  docker.io/ivarref/mikkmokk-proxy:v0.1.42
+  docker.io/ivarref/mikkmokk-proxy:v0.1.50
 ```
 
 There are two ports being exposed:
@@ -302,24 +302,25 @@ It will also update the `origin` HTTP header if present.
 
 ### All settings and default values
 
-| Header name             | Description                                                                                               | Default value |
-|-------------------------|-----------------------------------------------------------------------------------------------------------|---------------|
-| delay-after-ms          | Number of milliseconds to delay after the destination has replied                                         | 0             |
-| delay-after-percentage  | Percentage chance of introducing delay after the destination has replied                                  | 0             |
-| delay-before-ms         | Number of milliseconds to delay before accessing the destination                                          | 0             |
-| delay-before-percentage | Percentage chance of introducing delay before accessing the destination                                   | 0             |
-| destination-url         | Where to forward the request to. E.g. http://example.com                                                  | nil           |
-| duplicate-percentage    | Percentage chance of introducing a duplicate request                                                      | 0             |
-| fail-after-code         | The HTTP status code to reply with if a request was deliberately aborted after accessing the destination  | 502           |
-| fail-after-percentage   | Percentage chance of aborting the request after accessing the destination                                 | 0             |
-| fail-before-code        | The HTTP status code to reply with if a request was deliberately aborted before accessing the destination | 503           |
-| fail-before-percentage  | Percentage chance of aborting the request before accessing the destination                                | 0             |
-| match-header-name       | Only apply failures and/or delays if this HTTP header name's value is identical to ...                    | *             |
-| match-header-value      | the value in this header. I.e. use this pair of headers to match an arbitrary header value.               | *             |
-| match-host              | Only apply failures and/or delays if the destination host matches this value, e.g. `example.org`          | *             |
-| match-method            | Only apply failures and/or delays to this HTTP method (GET, POST, HEAD, etc.)                             | *             |
-| match-uri               | Only apply failures and/or delays to this HTTP uri (e.g. `/my-api/my-endpoint`)                           | *             |
-| match-uri-starts-with   | Only apply failures and/or delays if the HTTP uri starts with this prefix                                 | *             |
+| Header name             | Description                                                                                                                                                                      | Default value |
+|-------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|
+| delay-after-ms          | Number of milliseconds to delay after the destination has replied                                                                                                                | 0             |
+| delay-after-percentage  | Percentage chance of introducing delay after the destination has replied                                                                                                         | 0             |
+| delay-before-ms         | Number of milliseconds to delay before accessing the destination                                                                                                                 | 0             |
+| delay-before-percentage | Percentage chance of introducing delay before accessing the destination                                                                                                          | 0             |
+| destination-url         | Where to forward the request to. E.g. http://example.com                                                                                                                         | nil           |
+| duplicate-percentage    | Percentage chance of introducing a duplicate request                                                                                                                             | 0             |
+| fail-after-code         | The HTTP status code to reply with if a request was deliberately aborted after accessing the destination                                                                         | 502           |
+| fail-after-percentage   | Percentage chance of aborting the request after accessing the destination                                                                                                        | 0             |
+| fail-before-code        | The HTTP status code to reply with if a request was deliberately aborted before accessing the destination                                                                        | 503           |
+| fail-before-percentage  | Percentage chance of aborting the request before accessing the destination                                                                                                       | 0             |
+| match-header-name       | Only apply failures and/or delays if this HTTP header name's value is identical to ...                                                                                           | *             |
+| match-header-value      | the value in this header. I.e. use this pair of headers to match an arbitrary header value.                                                                                      | *             |
+| match-host              | Only apply failures and/or delays if the destination host matches this value, e.g. `example.org`                                                                                 | *             |
+| match-method            | Only apply failures and/or delays to this HTTP method (GET, POST, HEAD, etc.)                                                                                                    | *             |
+| match-uri               | Only apply failures and/or delays to this HTTP uri (e.g. `/my-api/my-endpoint`)                                                                                                  | *             |
+| match-uri-regex         | Only apply failures and/or delays to this HTTP uri if it matches the entire regex. Tip: an uuid may be matched with the following: `([a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12})` | *             |
+| match-uri-starts-with   | Only apply failures and/or delays if the HTTP uri starts with this prefix                                                                                                        | *             |
 
 When using these settings as headers, you will need to prefix them with `x-mikkmokk-`.
 
@@ -360,6 +361,9 @@ There is no attempt at validating `-percentage` nor `-code` properties.
 [toxiproxy](https://github.com/Shopify/toxiproxy): A chaotic TCP proxy.
 
 ## Changelog
+
+#### 2022-06-19 v0.1.50
+Add `x-mikkmokk-match-uri-regex` header.
 
 #### 2022-06-16 v0.1.42
 First publicly announced release.

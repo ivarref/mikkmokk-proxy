@@ -34,6 +34,7 @@
    :delay-after-ms          0
 
    :match-uri               "*"
+   :match-uri-regex         "*"
    :match-method            "*"
    :match-uri-starts-with   "*"
 
@@ -43,6 +44,18 @@
    :match-header-value      "*"
 
    :destination-url         nil})
+
+(defn parse-items [headers]
+  (reduce-kv
+    (fn [o k v]
+      (let [vv (get headers k)]
+        (if (string? vv)
+          (if (or (nil? v) (string? v))
+            (assoc o k vv)
+            (assoc o k (parse-long vv)))
+          o)))
+    {}
+    (default-headers)))
 
 (defn env-settings []
   (->> (default-headers)
@@ -55,20 +68,6 @@
                            env-v
                            (parse-long env-v))]]))))
        (into (sorted-map))))
-
-(defn parse-long-maybe [m k]
-  (if-let [v (get m k)]
-    (if (string? v)
-      (assoc m k (parse-long v))
-      m)
-    m))
-
-(defn set-string-maybe [m k]
-  (if-let [v (get m k)]
-    (if (string? v)
-      (assoc m k v)
-      m)
-    m))
 
 (def header-prefix "x-mikkmokk-")
 
@@ -98,21 +97,7 @@
   (->
     (downcase-headers headers)
     (get-mikkmokk-keys)
-    (parse-long-maybe :fail-before-percentage)
-    (parse-long-maybe :fail-before-code)
-    (parse-long-maybe :fail-after-percentage)
-    (parse-long-maybe :fail-after-code)
-    (parse-long-maybe :delay-before-percentage)
-    (parse-long-maybe :delay-before-ms)
-    (parse-long-maybe :delay-after-percentage)
-    (parse-long-maybe :delay-after-ms)
-    (parse-long-maybe :duplicate-percentage)
-    (set-string-maybe :destination-url)
-    (set-string-maybe :match-uri)
-    (set-string-maybe :match-method)
-    (set-string-maybe :match-uri-starts-with)
-    (set-string-maybe :match-host)
-    (select-keys (keys (default-headers)))))
+    (parse-items)))
 
 (defn parse-headers [env headers]
   (merge-with (fn [a b] (or b a))
@@ -138,6 +123,15 @@
     (= "*" string-pat)
     true
     (= string-pat uri)
+    true
+    :else
+    false))
+
+(defn matches-uri-regex? [pat uri]
+  (cond
+    (= "*" pat)
+    true
+    (re-matches (Pattern/compile pat) uri)
     true
     :else
     false))
@@ -212,8 +206,9 @@
 
 (defn matches? [{:keys [request-method uri headers]}
                 {:keys [destination-url]}
-                {:keys [match-uri match-host match-uri-starts-with match-method] :as parsed-headers}]
+                {:keys [match-uri match-uri-regex match-host match-uri-starts-with match-method] :as parsed-headers}]
   (and (matches-uri? match-uri uri)
+       (matches-uri-regex? match-uri-regex uri)
        (matches-host? match-host destination-url)
        (matches-uri-starts-with? uri match-uri-starts-with)
        (matches-method? match-method request-method)
@@ -364,6 +359,20 @@
                      (json-kv "service" "mikkmokk") ","
                      (json-kv "message" "Added one-off")
                      "}" body-trailer)})
+
+    (and (= request-method :post) (= uri "/api/v1/list-headers"))
+    (do
+      (doseq [header-key (sort (keys headers))]
+        (when (str/starts-with? (str/lower-case header-key) "x-mikkmokk-")
+          (log/info "Header" header-key "=>" (get headers header-key))))
+      {:status  200
+       :headers {"content-type" "application/json"}
+       :body    (str "["
+                     (str/join ", "
+                               (mapv #(str "\"" % "\"")
+                                     (sort (keys headers))))
+                     "]"
+                     body-trailer)})
 
     (and (= request-method :post) (= uri "/api/v1/reset"))
     (admin-map->response env (reset! admin-settings (parse-headers-str-map headers)))

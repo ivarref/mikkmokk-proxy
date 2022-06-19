@@ -129,3 +129,15 @@
          (origin (get-uri "/mikkmokk-forward-https/example.com:8080/" {"origin" "http://localhost:8090"}))))
   (is (= "https://example.com:8080"
          (origin (get-uri "/mikkmokk-forward-https/example.com:8080/api" {"origin" "http://localhost:8090"})))))
+
+
+(deftest matches-uri-regex
+  (is (= 200 (:status (get-uri "/mikkmokk-forward-http/example.com/a123123123"
+                               {"x-mikkmokk-match-uri-regex" "/[0-9]+"
+                                "x-mikkmokk-fail-before-percentage" "100"}))))
+  (is (= 503 (:status (get-uri "/mikkmokk-forward-http/example.com/123123123"
+                               {"x-mikkmokk-match-uri-regex" "/[0-9]+"
+                                "x-mikkmokk-fail-before-percentage" "100"}))))
+  (is (= 503 (:status (get-uri "/mikkmokk-forward-http/example.com/api/uuid/af9facf3-f679-4245-aa83-1b95cea52a1d"
+                               {"x-mikkmokk-match-uri-regex" "/api/uuid/([a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12})"
+                                "x-mikkmokk-fail-before-percentage" "100"})))))
