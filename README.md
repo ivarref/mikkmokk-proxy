@@ -44,7 +44,7 @@ $ docker run --rm --name mikkmokk-proxy \
   -e ADMIN_PORT=7070 \
   -p 8080:8080 \
   -p 7070:7070 \
-  docker.io/ivarref/mikkmokk-proxy:v0.1.50
+  docker.io/ivarref/mikkmokk-proxy:v0.1.52
 ```
 
 There are two ports being exposed:
@@ -361,6 +361,9 @@ There is no attempt at validating `-percentage` nor `-code` properties.
 [toxiproxy](https://github.com/Shopify/toxiproxy): A chaotic TCP proxy.
 
 ## Changelog
+
+#### 2022-06-23 v0.1.52
+Add coloring of HTTP status codes.
 
 #### 2022-06-19 v0.1.50
 Add `x-mikkmokk-match-uri-regex` header.

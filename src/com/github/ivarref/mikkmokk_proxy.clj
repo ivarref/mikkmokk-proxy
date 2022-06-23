@@ -2,6 +2,7 @@
   (:require [aleph.http :as http]
             [clojure.set :as set]
             [clojure.string :as str]
+            [clojure.term.colors :as colors]
             [clojure.tools.logging :as log]
             [lambdaisland.regal :as regal])
   (:import (java.io Closeable)
@@ -44,6 +45,16 @@
    :match-header-value      "*"
 
    :destination-url         nil})
+
+(defn color-code [code]
+  (cond (< code 400)
+        (colors/green (str code))
+
+        (< code 500)
+        (colors/yellow (str code))
+
+        :else
+        (colors/red (str code))))
 
 (defn parse-items [headers]
   (reduce-kv
@@ -187,8 +198,8 @@
         resp2 @req2]
     (if duplicate?
       (if (not= (:status resp1) (:status resp2))
-        (log/info "Duplicate request returned different HTTP status codes" (:status resp1) "vs" (:status resp2) "for" (str/upper-case (name request-method)) url)
-        (log/info "Duplicate request returned identical HTTP status code" (:status resp1) "for" (str/upper-case (name request-method)) url))
+        (log/info "Duplicate request returned different HTTP status codes" (color-code (:status resp1)) "vs" (color-code (:status resp2)) "for" (str/upper-case (name request-method)) url)
+        (log/info "Duplicate request returned identical HTTP status code" (color-code (:status resp1)) "for" (str/upper-case (name request-method)) url))
       (log/debug "No duplicate request"))
     (rand-nth (filterv some? [resp1 resp2]))))
 
@@ -239,9 +250,10 @@
                 duplicate-percentage
                 destination-url] :as parsed-headers} (maybe-pop-one-off! one-off request (parse-headers env headers))]
     (if (empty? destination-url)
-      (do
-        (log/warn "missing destination-url")
-        {:status  500
+      (let [error-code 500]
+        (log/warn "HTTP" (color-code error-code) (str/upper-case (name request-method))
+                  uri "Missing destination-url, returning" (color-code error-code))
+        {:status  error-code
          :headers {"content-type" "application/json"}
          :body    (str "{" (json-kv "error" "missing-destination-url") "}" body-trailer)})
       (let [method-uri-from (str (str/upper-case (name request-method)) " " uri " from " (destination-url->host destination-url))
@@ -265,7 +277,7 @@
           (Thread/sleep delay-before-ms))
         (if (and (> fail-before-percentage (rand-int 100)) match?)
           (do
-            (log/info "HTTP" fail-before-code method-uri-from "fail-before")
+            (log/info "HTTP" (color-code fail-before-code) method-uri-from "fail-before")
             {:status  fail-before-code
              :headers {"content-type" "application/json"}
              :body    (str "{" (json-kv "error" "fail-before") "}" body-trailer)})
@@ -275,7 +287,7 @@
               (Thread/sleep delay-after-ms))
             (if (and (> fail-after-percentage (rand-int 100)) match?)
               (do
-                (log/info "HTTP" fail-after-code method-uri-from "fail-after. Destination response code:" status)
+                (log/info "HTTP" (color-code fail-after-code) method-uri-from "fail-after. Destination response code:" (color-code status))
                 {:status  fail-after-code
                  :headers {"content-type" "application/json"}
                  :body    (str "{"
@@ -292,8 +304,8 @@
                            delay-before-percentage
                            delay-after-percentage)
                         (not match?))
-                  (log/info "HTTP" status (str method-uri-from ". No match / all percentages were zero."))
-                  (log/info "HTTP" status method-uri-from))
+                  (log/info "HTTP" (color-code status) (str method-uri-from ". No match / all percentages were zero."))
+                  (log/info "HTTP" (color-code status) method-uri-from))
                 {:status  status
                  :headers headers
                  :body    body}))))))))
@@ -364,7 +376,10 @@
     (do
       (doseq [header-key (sort (keys headers))]
         (when (str/starts-with? (str/lower-case header-key) "x-mikkmokk-")
-          (log/info "Header" header-key "=>" (get headers header-key))))
+          (log/info "x-mikkmokk- Header" header-key "=>" (get headers header-key))))
+      (doseq [header-key (sort (keys headers))]
+        (when (not (str/starts-with? (str/lower-case header-key) "x-mikkmokk-"))
+          (log/info "Other header" header-key "=>" (get headers header-key))))
       {:status  200
        :headers {"content-type" "application/json"}
        :body    (str "["
