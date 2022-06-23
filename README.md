@@ -44,7 +44,7 @@ $ docker run --rm --name mikkmokk-proxy \
   -e ADMIN_PORT=7070 \
   -p 8080:8080 \
   -p 7070:7070 \
-  docker.io/ivarref/mikkmokk-proxy:v0.1.53
+  docker.io/ivarref/mikkmokk-proxy:v0.1.54
 ```
 
 There are two ports being exposed:
@@ -365,6 +365,9 @@ There is no attempt at validating `-percentage` nor `-code` properties.
 [toxiproxy](https://github.com/Shopify/toxiproxy): A chaotic TCP proxy.
 
 ## Changelog
+
+#### 2022-06-23 v0.1.54
+Remove logger name.
 
 #### 2022-06-23 v0.1.53
 Remove thread name from logging, add information about timezone when logging.
