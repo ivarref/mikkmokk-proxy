@@ -18,6 +18,23 @@ mikkmokk can inject five different types of faults:
 * add a delay after accessing the destination
 * add a duplicate a request
 
+```mermaid
+sequenceDiagram
+    client->>mikkmokk: POST
+    mikkmokk->>mikkmokk: 💤delay before?💤
+    mikkmokk->>client: 💥fail before?💥
+    mikkmokk->>destination: POST
+    mikkmokk->>destination: 💥duplicate POST?💥
+    destination->>database: read and/or state change
+    database->>destination: result
+    destination->>mikkmokk: result
+    mikkmokk->>mikkmokk: 💤delay after?💤
+    mikkmokk->>client: result OR 💥fail after?💥
+```
+
+`client` here is anything that will normally access `destination`
+using the HTTP protocol, but goes via `mikkmokk` instead.
+
 mikkmokk does fault injection based on a percentage chance.
 The scope for fault injection may be narrowed further by settings
 various matching criteria (URI, request method, header name/value pair, etc).
