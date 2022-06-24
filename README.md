@@ -11,13 +11,6 @@ mikkmokk-proxy is — literally — a gateway drug for resiliency testing on the
 
 ## Overview
 
-mikkmokk can inject five different types of faults:
-* fail a request before the destination is reached
-* fail a request after the destination is reached
-* add a delay before accessing the destination
-* add a delay after accessing the destination
-* add a duplicate a request
-
 ```mermaid
 sequenceDiagram
     client->>mikkmokk: POST
@@ -35,6 +28,13 @@ sequenceDiagram
 `client` here is anything that will normally access `destination`
 using the HTTP protocol, but goes via `mikkmokk` instead.
 
+mikkmokk can inject five different types of faults:
+* fail a request before the destination is reached
+* fail a request after the destination is reached
+* add a delay before accessing the destination
+* add a delay after accessing the destination
+* add a duplicate a request
+
 mikkmokk does fault injection based on a percentage chance.
 The scope for fault injection may be narrowed further by settings
 various matching criteria (URI, request method, header name/value pair, etc).
@@ -47,7 +47,7 @@ set both statically and dynamically:
 
 mikkmokk supports proxying to arbitrary URLs.
 
-## Usage
+## Example usage
 
 #### Start the reverse proxy
 
