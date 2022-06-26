@@ -4,6 +4,7 @@
             [clojure.string :as str]
             [clojure.term.colors :as colors]
             [clojure.tools.logging :as log]
+            [dom-top.core :refer [letr]]
             [lambdaisland.regal :as regal])
   (:import (java.io Closeable)
            (java.net InetSocketAddress)
@@ -12,6 +13,7 @@
            (sun.misc Signal SignalHandler))
   (:gen-class))
 
+(declare return)
 
 (defn get-env [k v]
   (or (System/getenv k)
@@ -239,76 +241,70 @@
 
 
 (defn handler [{:keys [env one-off]} {:keys [request-method uri headers body] :as request}]
-  (let [{:keys [fail-before-percentage
-                fail-before-code
-                fail-after-percentage
-                fail-after-code
-                delay-before-percentage
-                delay-before-ms
-                delay-after-percentage
-                delay-after-ms
-                duplicate-percentage
-                destination-url] :as parsed-headers} (maybe-pop-one-off! one-off request (parse-headers env headers))]
-    (if (empty? destination-url)
-      (let [error-code 500]
-        (log/warn "HTTP" (color-code error-code) (str/upper-case (name request-method))
-                  uri "Missing destination-url, returning" (color-code error-code))
-        {:status  error-code
-         :headers {"content-type" "application/json"}
-         :body    (str "{" (json-kv "error" "missing-destination-url") "}" body-trailer)})
-      (let [method-uri-from (str (str/upper-case (name request-method)) " " uri " from " (destination-url->host destination-url))
-            dest-headers (-> headers
-                             (assoc "host" (destination-url->host destination-url))
-                             (merge
-                               (when (not-empty (get headers "origin"))
-                                 {"origin" (str (destination-url->scheme destination-url)
-                                                "://"
-                                                (destination-url->host destination-url))})))
-            url (str destination-url uri)
-            match? (matches? request parsed-headers parsed-headers)
-            delay-before-ms (if (and (> delay-before-percentage (rand-int 100)) match?)
-                              delay-before-ms
-                              0)
-            delay-after-ms (if (and (> delay-after-percentage (rand-int 100)) match?)
-                             delay-after-ms
-                             0)]
-        (when (pos-int? delay-before-ms)
-          (log/info "before-delay" delay-before-ms "ms")
-          (Thread/sleep delay-before-ms))
-        (if (and (> fail-before-percentage (rand-int 100)) match?)
-          (do
-            (log/info "HTTP" (color-code fail-before-code) method-uri-from "fail-before")
-            {:status  fail-before-code
-             :headers {"content-type" "application/json"}
-             :body    (str "{" (json-kv "error" "fail-before") "}" body-trailer)})
-          (let [{:keys [headers status body]} (make-request match? duplicate-percentage request-method uri url dest-headers body)]
-            (when (pos-int? delay-after-ms)
-              (log/info "delay-after" delay-after-ms "ms")
-              (Thread/sleep delay-after-ms))
-            (if (and (> fail-after-percentage (rand-int 100)) match?)
-              (do
-                (log/info "HTTP" (color-code fail-after-code) method-uri-from "fail-after. Destination response code:" (color-code status))
-                {:status  fail-after-code
-                 :headers {"content-type" "application/json"}
-                 :body    (str "{"
-                               (json-kv "error" "fail-after")
-                               ","
-                               (json-kv "destination-response-code" status)
-                               "}"
-                               body-trailer)})
-              (do
-                (if (or (= 0
-                           fail-before-percentage
-                           fail-after-percentage
-                           duplicate-percentage
-                           delay-before-percentage
-                           delay-after-percentage)
-                        (not match?))
-                  (log/info "HTTP" (color-code status) (str method-uri-from ". No match / all percentages were zero."))
-                  (log/info "HTTP" (color-code status) method-uri-from))
-                {:status  status
-                 :headers headers
-                 :body    body}))))))))
+  (letr [{:keys [fail-before-percentage
+                 fail-before-code
+                 fail-after-percentage
+                 fail-after-code
+                 delay-before-percentage
+                 delay-before-ms
+                 delay-after-percentage
+                 delay-after-ms
+                 duplicate-percentage
+                 destination-url] :as parsed-headers} (maybe-pop-one-off! one-off request (parse-headers env headers))
+         _ (when (empty? destination-url)
+             (let [error-code 500]
+               (log/warn "HTTP" (color-code error-code) (str/upper-case (name request-method))
+                         uri "Missing destination-url, returning" (color-code error-code))
+               (return {:status  error-code
+                        :headers {"content-type" "application/json"}
+                        :body    (str "{" (json-kv "error" "missing-destination-url") "}" body-trailer)})))
+         method-uri-from (str (str/upper-case (name request-method)) " " uri " from " (destination-url->host destination-url))
+         dest-headers (-> headers
+                          (assoc "host" (destination-url->host destination-url))
+                          (merge
+                            (when (not-empty (get headers "origin"))
+                              {"origin" (str (destination-url->scheme destination-url)
+                                             "://"
+                                             (destination-url->host destination-url))})))
+         url (str destination-url uri)
+         match? (matches? request parsed-headers parsed-headers)
+         delay-before-ms (if (and (> delay-before-percentage (rand-int 100)) match?)
+                           delay-before-ms
+                           0)
+         delay-after-ms (if (and (> delay-after-percentage (rand-int 100)) match?)
+                          delay-after-ms
+                          0)
+         _ (when (pos-int? delay-before-ms)
+             (log/info "before-delay" delay-before-ms "ms")
+             (Thread/sleep delay-before-ms))
+         _ (when (and (> fail-before-percentage (rand-int 100)) match?)
+             (log/info "HTTP" (color-code fail-before-code) method-uri-from "fail-before")
+             (return {:status  fail-before-code
+                      :headers {"content-type" "application/json"}
+                      :body    (str "{" (json-kv "error" "fail-before") "}" body-trailer)}))
+         {:keys [headers status body]} (make-request match? duplicate-percentage request-method uri url dest-headers body)
+         _ (when (pos-int? delay-after-ms)
+             (log/info "delay-after" delay-after-ms "ms")
+             (Thread/sleep delay-after-ms))
+         _ (when (and (> fail-after-percentage (rand-int 100)) match?)
+             (log/info "HTTP" (color-code fail-after-code) method-uri-from "fail-after. Destination response code:" (color-code status))
+             (return {:status  fail-after-code
+                      :headers {"content-type" "application/json"}
+                      :body    (str "{" (json-kv "error" "fail-after") ","
+                                    (json-kv "destination-response-code" status) "}"
+                                    body-trailer)}))
+         _ (if (or (= 0
+                      fail-before-percentage
+                      fail-after-percentage
+                      duplicate-percentage
+                      delay-before-percentage
+                      delay-after-percentage)
+                   (not match?))
+             (log/info "HTTP" (color-code status) (str method-uri-from ". No match / all percentages were zero."))
+             (log/info "HTTP" (color-code status) method-uri-from))]
+    {:status  status
+     :headers headers
+     :body    body}))
 
 (def fwd-http
   (regal/regex
