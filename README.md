@@ -61,7 +61,7 @@ $ docker run --rm --name mikkmokk-proxy \
   -e ADMIN_PORT=7070 \
   -p 8080:8080 \
   -p 7070:7070 \
-  docker.io/ivarref/mikkmokk-proxy:v0.1.54
+  docker.io/ivarref/mikkmokk-proxy:v0.1.59
 ```
 
 There are two ports being exposed:
@@ -383,7 +383,7 @@ There is no attempt at validating `-percentage` nor `-code` properties.
 
 ## Changelog
 
-#### 2023-05-12 v0.1.??
+#### 2023-05-12 v0.1.59
 If remote server sends header `Access-Control-Allow-Origin` in its response,
 set it to the input value of `Origin`.
 
