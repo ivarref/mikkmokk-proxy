@@ -1,21 +1,27 @@
 (ns ivarref.http-test
   (:require [aleph.http :as http]
+            [aleph.netty :as netty]
             [clj-commons.byte-streams :as bs]
             [clojure.test :refer [deftest is use-fixtures]]
             [com.github.ivarref.mikkmokk-proxy :as mm])
   (:import (java.util.concurrent Executors)))
 
+(def ^:dynamic *server-port* nil)
+(def ^:dynamic *admin-port* nil)
+
 (defn with-server [f]
   (let [state {:one-off (atom #{})
                :env     {}}
-        server (http/start-server (fn [req] (mm/outer-handler state req)) {:executor (Executors/newFixedThreadPool 8) :port 8090})
-        admin (http/start-server (fn [req] (mm/admin-handler state req)) {:executor (Executors/newFixedThreadPool 2) :port 9999})]
+        server (http/start-server (fn [req] (mm/outer-handler state req)) {:executor (Executors/newFixedThreadPool 8) :port 0})
+        admin (http/start-server (fn [req] (mm/admin-handler state req)) {:executor (Executors/newFixedThreadPool 2) :port 0})]
     (try
       (with-redefs [mm/single-request (fn [_request-method url headers _body]
                                         {:status  200
                                          :body    url
                                          :headers (dissoc headers "content-length")})]
-        (f))
+        (binding [*server-port* (netty/port server)
+                  *admin-port* (netty/port admin)]
+          (f)))
       (finally
         (.close server)
         (.close admin)))))
@@ -24,7 +30,7 @@
 
 (defn get-uri [uri headers]
   (try
-    (-> @(http/get (str "http://localhost:8090" uri) {:headers headers})
+    (-> @(http/get (str "http://localhost:" *server-port* uri) {:headers headers})
         (update :body bs/to-string))
     (catch Throwable t
       (-> (ex-data t)
@@ -32,7 +38,7 @@
 
 (defn post-admin-uri [uri headers]
   (try
-    (-> @(http/post (str "http://localhost:9999" uri) {:headers headers})
+    (-> @(http/post (str "http://localhost:" *admin-port* uri) {:headers headers})
         (update :body bs/to-string))
     (catch Throwable t
       (ex-data t))))
@@ -129,6 +135,12 @@
          (origin (get-uri "/mikkmokk-forward-https/example.com:8080/" {"origin" "http://localhost:8090"}))))
   (is (= "https://example.com:8080"
          (origin (get-uri "/mikkmokk-forward-https/example.com:8080/api" {"origin" "http://localhost:8090"})))))
+
+(deftest test-Access-Control-Allow-Origin
+  (is (= "http://localhost:8090"
+         (-> (get-in (get-uri "/mikkmokk-forward-http/example.com:8080/" {"origin" "http://localhost:8090"
+                                                                          "Access-Control-Allow-Origin" "demo"})
+                     [:headers "Access-Control-ALLOW-Origin"])))))
 
 
 (deftest matches-uri-regex

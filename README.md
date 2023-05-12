@@ -315,7 +315,7 @@ $ curl http://localhost:8080/mikkmokk-forward-https/example.org/some-other-endpo
 ### Headers modified by mikkmokk
 
 mikkmokk will automatically edit the `host` HTTP header when accessing the destination.
-It will also update the `origin` HTTP header if present.
+It will also update the `origin` and `Access-Control-Allow-Origin` HTTP headers if present.
 
 ### All settings and default values
 
@@ -382,6 +382,11 @@ There is no attempt at validating `-percentage` nor `-code` properties.
 [toxiproxy](https://github.com/Shopify/toxiproxy): A chaotic TCP proxy.
 
 ## Changelog
+
+#### 2023-05-12 v0.1.??
+If remote server sends header `Access-Control-Allow-Origin` in its response,
+set it to the input value of `Origin`.
+
 
 #### 2022-06-23 v0.1.54
 Remove logger name.

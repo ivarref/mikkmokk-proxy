@@ -239,6 +239,11 @@
       (assoc found :destination-url (:destination-url def-headers))
       def-headers)))
 
+(defn rewrite-response-headers [client-headers remote-headers]
+  (when-let [acao (get remote-headers "access-control-allow-origin")]
+    (when-let [origin (get client-headers "origin")]
+      (log/debug "Rewriting" (json-kv "access-control-allow-origin" acao) "to" origin)
+      {"access-control-allow-origin" origin})))
 
 (defn handler [{:keys [env one-off]} {:keys [request-method uri headers body] :as request}]
   (letr [{:keys [fail-before-percentage
@@ -282,7 +287,10 @@
              (return {:status  fail-before-code
                       :headers {"content-type" "application/json"}
                       :body    (str "{" (json-kv "error" "fail-before") "}" body-trailer)}))
-         {:keys [headers status body]} (make-request match? duplicate-percentage request-method uri url dest-headers body)
+         {:keys [headers status body]} (-> (make-request match? duplicate-percentage request-method uri url dest-headers body)
+                                           (update :headers (fn [remote-headers] (merge
+                                                                                   remote-headers
+                                                                                   (rewrite-response-headers headers remote-headers)))))
          _ (when (pos-int? delay-after-ms)
              (log/info "delay-after" delay-after-ms "ms")
              (Thread/sleep delay-after-ms))
@@ -462,4 +470,3 @@
 
 (comment
   (run-main {}))
-
