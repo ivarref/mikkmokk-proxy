@@ -3,6 +3,7 @@
             [aleph.netty :as netty]
             [clj-commons.byte-streams :as bs]
             [clojure.test :refer [deftest is use-fixtures]]
+            [clojure.tools.logging :as log]
             [com.github.ivarref.mikkmokk-proxy :as mm])
   (:import (java.util.concurrent Executors)))
 
@@ -23,8 +24,14 @@
                   *admin-port* (netty/port admin)]
           (f)))
       (finally
-        (.close server)
-        (.close admin)))))
+        (try
+          (.close server)
+          (catch Throwable t
+            (log/error t "Error while trying to close server:" (ex-message t))))
+        (try
+          (.close admin)
+          (catch Throwable t
+            (log/error t "Error while trying to close admin server:" (ex-message t))))))))
 
 (use-fixtures :each with-server)
 
