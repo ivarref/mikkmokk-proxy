@@ -383,10 +383,12 @@ There is no attempt at validating `-percentage` nor `-code` properties.
 
 ## Changelog
 
+#### 2024-05-06 v0.1.62
+[Publish multiarch Docker image #1](https://github.com/ivarref/mikkmokk-proxy/issues/1).
+
 #### 2023-05-12 v0.1.59
 If remote server sends header `Access-Control-Allow-Origin` in its response,
 set it to the input value of `Origin`.
-
 
 #### 2022-06-23 v0.1.54
 Remove logger name.
